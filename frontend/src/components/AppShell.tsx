@@ -15,7 +15,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh flex flex-col">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded focus:bg-[var(--card)] focus:px-3 focus:py-2 focus:text-sm focus:border"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:flex focus:items-center focus:rounded focus:bg-[var(--card)] focus:px-3 focus:text-sm focus:border tap-target"
         style={{ borderColor: "var(--line)" }}
       >
         Skip to content
