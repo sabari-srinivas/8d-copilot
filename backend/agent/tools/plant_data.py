@@ -11,7 +11,6 @@ from data.constants import (DEFECT_RATE_THRESHOLD, PARAM_UNITS, PRODUCT,
                             REFLOW_PEAK_LIMIT_C)
 
 OUT = Path(__file__).resolve().parents[2] / "data" / "out"
-TABLES = ("lots", "process", "maintenance", "complaints")
 NUMERIC_PARAMS = [p for p in PARAM_UNITS if p != "operator_id"]
 
 
@@ -67,7 +66,11 @@ def joined() -> pd.DataFrame:
     df = store.lots().merge(store.process(), on="lot_id")
     df["date"] = pd.to_datetime(df["date"])
     df["bridge_rate"] = df.defects_solder_bridge / df.qty
-    return df
+    # Defensive copy: this DataFrame is lru_cache'd and shared by every caller across the
+    # process. Without the copy, the first caller that mutates its result (even via a
+    # column assignment on what looks like a local variable) would silently poison the
+    # one cached object for everyone else. The copy is cheap next to the CSV read above.
+    return df.copy()
 
 
 def _reset_caches() -> None:
@@ -88,7 +91,7 @@ def get_lot_genealogy(lot_id: str) -> dict:
         raise KeyError(f"unknown lot {lot_id}")
     row = hit.iloc[0]
     return {
-        "lot_id": row.lot_id, "line": row.line, "shift": row.shift,
+        "lot_id": row.lot_id, "line": row.line, "shift": row["shift"],
         "date": row.date.strftime("%Y-%m-%d"), "product": row["product"], "qty": int(row.qty),
         "paste_lot": row.paste_lot, "stencil_id": row.stencil_id, "operator_id": row.operator_id,
         "defects_solder_bridge": int(row.defects_solder_bridge),
@@ -98,6 +101,10 @@ def get_lot_genealogy(lot_id: str) -> dict:
 
 
 def get_process_window(product: str = PRODUCT, days: int = 30) -> dict:
+    # An unknown `product` filters to an empty frame; `df.date.max()` on that is NaT,
+    # every comparison against NaT is False, and this returns an empty-but-valid result
+    # rather than raising. Not a brief requirement (only unknown lot / missing CSV must
+    # raise), but worth knowing if a caller ever passes an unvalidated product string.
     df = joined()
     df = df[df["product"] == product]
     cutoff = df.date.max() - pd.Timedelta(days=days)
@@ -127,7 +134,11 @@ def get_maintenance_events(line: str, since: str | None = None) -> list[dict]:
 
 
 def get_comparison_groups(lot_id: str, product: str = PRODUCT, days: int = 30) -> dict:
-    """Defect lots vs good lots of the same product in the last `days` (PRD 9.3)."""
+    """Defect lots vs good lots of the same product in the last `days` (PRD 9.3).
+
+    Same empty-but-valid caveat as get_process_window: an unknown `product` yields
+    empty defect_lots/good_lots rather than an error.
+    """
     df = joined()
     df = df[df["product"] == product]
     cutoff = df.date.max() - pd.Timedelta(days=days)
