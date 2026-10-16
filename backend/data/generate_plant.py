@@ -67,7 +67,7 @@ for i, (lot, d) in enumerate(zip(lot_ids, dates)):
     if line == "L1":
         stencil = "ST-03A"
     else:
-        stencil = "ST-07B" if d >= pd.Timestamp("2026-10-07") else "ST-05A"
+        stencil = "ST-07B" if d >= WO386_DATE else "ST-05A"
     paste_lot = f"PL-{2601 + (d - START).days // 7:04d}"
     qty = int(rng.integers(480, 521))
     rows.append(dict(lot_id=lot_id, line=line, shift=shift, date=d.date(),
