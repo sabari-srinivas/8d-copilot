@@ -259,6 +259,27 @@ async def test_upload_bytes_are_released_on_failure(wired, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_crashed_investigation_is_stored_as_failed(wired, monkeypatch):
+    """Contract amendment (task 10): before this, a crash left status='running'
+    forever, so a client polling GET /investigations/{id} would spin indefinitely.
+    The stored status must settle to 'failed', with the error message recorded, and
+    the SSE trace must still end cleanly (error then done) rather than hang."""
+    def boom(*a, **k):
+        raise RuntimeError("the model is down")
+    monkeypatch.setattr(inv_agent, "generate_structured", boom)
+    inv_id = await orchestrator.start(
+        complaint_id="C-2026-031", lot_id=GOLDEN_LOT,
+        image_bytes=(FX / "tiny.jpg").read_bytes(), mime_type="image/jpeg",
+        complaint_text="solder bridging")
+    with pytest.raises(RuntimeError, match="the model is down"):
+        await orchestrator.run_investigation(inv_id)
+    inv = wired.get_investigation(inv_id)
+    assert inv.status == "failed"
+    assert "the model is down" in inv.missing_data[0]
+    assert [e.type for e in bus.history(inv_id)][-2:] == ["error", "done"]
+
+
+@pytest.mark.asyncio
 async def test_no_image_bytes_reach_the_event_stream(wired):
     """PRD: no image bytes or secrets in logs or events."""
     inv_id = await _run()

@@ -31,7 +31,7 @@ def test_hypothesis_requires_a_parameter_or_an_event():
 
 def test_investigation_statuses_are_the_contract_values():
     assert set(Investigation.model_fields["status"].annotation.__args__) == {
-        "running", "draft_ready", "approved", "insufficient_evidence"}
+        "running", "draft_ready", "approved", "insufficient_evidence", "failed"}
 
 
 def test_eight_d_has_all_eight_sections():

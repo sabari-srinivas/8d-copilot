@@ -106,9 +106,16 @@ async def run_investigation(inv_id: str) -> None:
         state.save_investigation(inv)
     except Exception as exc:
         log.exception("investigation %s failed", inv_id)
+        message = f"{exc.__class__.__name__}: {exc}"
+        # Reuse missing_data rather than add a new field: it is already the
+        # Investigation's place for "why this run did not reach a verdict", shown
+        # to the user, and a crash is exactly that — just undetermined earlier.
+        if inv is not None:
+            inv.status = "failed"
+            inv.missing_data = [message]
+            state.save_investigation(inv)
         await bus.publish(inv_id, "system", "error", "The investigation could not finish",
-                          detail=f"{exc.__class__.__name__}: {exc}",
-                          data={"message": f"{exc.__class__.__name__}: {exc}"})
+                          detail=message, data={"message": message})
         raise
     finally:
         # The uploaded bytes never outlive the run, on either path.

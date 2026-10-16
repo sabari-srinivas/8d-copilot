@@ -17,7 +17,7 @@ Base: `{API_URL}/api`
      "data": {} }
    ```
    `hypothesis_result.data`: `{ "hypothesis_id": "H2", "verdict": "supported|rejected|inconclusive", "p_value": 0.003, "effect": "+8.1 °C mean peak temp", "n_defect": 6, "n_good": 58, "chart_url": "..." }`
-4. `GET /investigations/{id}` → full state: `status` (`running | draft_ready | approved | insufficient_evidence`), `defect {type, severity, box[x,y,w,h], confidence, visual_evidence}`, `hypotheses[]`, `eight_d {D1..D8: {text, citations[{label, source, ref}]}}`, `proposed_actions[{id, kind: capa|hold|work_order|customer_reply, summary}]`.
+4. `GET /investigations/{id}` → full state: `status` (`running | draft_ready | approved | insufficient_evidence | failed`), `defect {type, severity, box[x,y,w,h], confidence, visual_evidence}`, `hypotheses[]`, `eight_d {D1..D8: {text, citations[{label, source, ref}]}}`, `proposed_actions[{id, kind: capa|hold|work_order|customer_reply, summary}]`. `failed` means the run raised an exception before reaching a verdict; `missing_data[0]` carries the error message, and the event stream still ends `error` then `done` — a client polling this endpoint must stop on `failed` rather than spin forever.
 5. `POST /investigations/{id}/approve` body `{ "approver": "Priya R.", "edits": {"D4": "..."}, "rejected_action_ids": ["A3"], "note": "..." }` → `{ "capa_id", "hold_id", "work_order_id", "replies": {"ja", "en"}, "memory_id" }`
 6. `GET /memory` → saved confirmed causes.
 7. `GET /health` → `{ "ok": true, "model": "<GEMINI_MODEL>" }`
