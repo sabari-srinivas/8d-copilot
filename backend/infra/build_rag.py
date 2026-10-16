@@ -31,7 +31,14 @@ agentplatform.init(project=PROJECT, location=REGION)
 # project's FILES_BACKEND selector (which governs the app's own file storage,
 # default "local"), so this upload always goes straight to the bucket via the
 # storage client rather than through agent.tools.storage.put_bytes.
-bucket = storage.Client(project=PROJECT).bucket(BUCKET)
+storage_client = storage.Client(project=PROJECT)
+bucket = storage_client.lookup_bucket(BUCKET)
+if bucket is None:
+    bucket = storage_client.create_bucket(BUCKET, location=REGION)
+    print(f"created bucket gs://{BUCKET} in {REGION}")
+else:
+    print(f"reusing existing bucket gs://{BUCKET}")
+
 uris = []
 for path in sorted(DOCS.glob("*.md")):
     bucket.blob(f"docs/{path.name}").upload_from_string(

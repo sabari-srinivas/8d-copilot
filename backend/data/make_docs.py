@@ -45,11 +45,13 @@ def ap_from_severity(severity: int) -> str:
 ROW_14 = {
     "process_step": "Reflow soldering",
     "failure_mode": "Solder bridging",
-    "effect": "Short circuit between adjacent pins; ECU functional failure at customer ICT",
+    "effect": "Short circuit between adjacent pins from excess solder flowing between "
+              "adjacent fine-pitch pads; ECU functional failure at customer ICT",
     "severity": 8,
     "cause": "Reflow peak temperature above profile limit",
     "occurrence": 3,
-    "prevention": "Profile verification after any oven maintenance",
+    "prevention": "Profile verification after any oven maintenance; confirm peak "
+                  "temperature does not exceed the upper profile limit",
     "detection_control": "AOI 100% + profile check per shift",
     "detection": 4,
     "ap": "High",
@@ -79,7 +81,8 @@ PFMEA_ROWS = [
     dict(process_step="Reflow soldering", failure_mode="Cold solder joint",
          effect="Dull, grainy joint with poor mechanical strength; intermittent open under vibration",
          severity=6, cause="Reflow peak temperature below profile minimum or insufficient time above liquidus",
-         occurrence=2, prevention="Profile verification after any oven maintenance",
+         occurrence=2, prevention="Profile verification after any oven maintenance; confirm minimum peak "
+                                  "temperature and time above liquidus are met",
          detection_control="AOI 100% plus periodic cross-section audit", detection=4),
     dict(process_step="Reflow soldering", failure_mode="Component shift during reflow",
          effect="Component skewed or tombstoned after reflow; open or short at an adjacent pad",
@@ -99,7 +102,8 @@ PFMEA_ROWS = [
     dict(process_step="Reflow soldering", failure_mode="Insufficient reflow",
          effect="Paste not fully reflowed; grainy, non-wetted joint with open-circuit risk",
          severity=6, cause="Reflow peak temperature or time above liquidus below profile minimum",
-         occurrence=2, prevention="Profile verification after any oven maintenance",
+         occurrence=2, prevention="Profile verification after any oven maintenance; confirm soak and ramp "
+                                  "rates meet the paste datasheet",
          detection_control="AOI 100% + profile check per shift", detection=4),
     dict(process_step="Reflow soldering", failure_mode="Excess voiding under components",
          effect="Thermal and electrical derating; risk of cracking under thermal cycling",

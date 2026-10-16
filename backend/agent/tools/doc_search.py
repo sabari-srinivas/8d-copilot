@@ -21,6 +21,53 @@ DOCS = Path(__file__).resolve().parents[2] / "data" / "docs"
 MAX_QUOTE = 600
 
 
+_TABLE_ROW = re.compile(r"^\|(.*)\|$")
+
+
+def _depipe_table(body: str) -> str:
+    """Render a markdown `| Field | Value |` table as `Field: Value Field: Value ...`,
+    dropping the header row and separator rows like `|---|---|`."""
+    fields = []
+    for line in body.splitlines():
+        line = line.strip()
+        m = _TABLE_ROW.match(line)
+        if not m:
+            continue
+        cells = [c.strip() for c in m.group(1).split("|")]
+        if all(re.fullmatch(r"[-:\s]*", c) for c in cells):
+            continue  # separator row, e.g. |---|---|
+        if cells == ["Field", "Value"]:
+            continue  # header row
+        if len(cells) == 2:
+            fields.append(f"{cells[0]}: {cells[1]}")
+    return " ".join(fields)
+
+
+def _prose_paragraph(body: str) -> str:
+    """The clean prose paragraph in a section body (the 'Mechanism: ... Effect: ...'
+    or 'Characteristic: ...' sentence for PFMEA/control-plan rows, or the whole
+    narrative paragraph for past-8D sections, which have no table at all) —
+    whichever paragraph is NOT the markdown table."""
+    for para in re.split(r"\n\s*\n", body):
+        para = para.strip()
+        if para and not para.startswith("|"):
+            return " ".join(para.split())
+    return ""
+
+
+def _truncate_quote(text: str, limit: int = MAX_QUOTE) -> str:
+    """Cap at `limit` chars, cutting on a word boundary and marking the cut with an
+    ellipsis rather than slicing mid-word."""
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    budget = limit - 1  # reserve a char for the ellipsis
+    cut = text.rfind(" ", 0, budget)
+    if cut <= 0:
+        cut = budget
+    return text[:cut].rstrip(" ,;:.") + "…"
+
+
 @lru_cache
 def chunk_documents() -> tuple[Passage, ...]:
     chunks: list[Passage] = []
@@ -29,7 +76,7 @@ def chunk_documents() -> tuple[Passage, ...]:
         parts = re.split(r"^## (.+)$", text, flags=re.M)
         # parts = [preamble, heading1, body1, heading2, body2, ...]
         for heading, body in zip(parts[1::2], parts[2::2]):
-            quote = " ".join(body.split())[:MAX_QUOTE]
+            quote = _truncate_quote(_prose_paragraph(body) or _depipe_table(body))
             if quote:
                 chunks.append(Passage(source=path.name, ref=heading.strip(), quote=quote))
     return tuple(chunks)
@@ -37,7 +84,10 @@ def chunk_documents() -> tuple[Passage, ...]:
 
 @lru_cache
 def _chunk_matrix() -> np.ndarray:
-    vectors = embed([f"{c.source} {c.ref}: {c.quote}" for c in chunk_documents()])
+    chunks = chunk_documents()
+    if not chunks:
+        raise RuntimeError(f"no citable chunks found under {DOCS} — is the docs corpus empty?")
+    vectors = embed([f"{c.source} {c.ref}: {c.quote}" for c in chunks])
     m = np.array(vectors, dtype="float32")
     return m / np.linalg.norm(m, axis=1, keepdims=True)
 
@@ -82,7 +132,7 @@ def _search_vertex(query: str, k: int) -> list[Passage]:
     # with monotonically increasing scores. Keep/sort by the *minimum* score
     # per heading here; do not negate or rescale it into a fake similarity.
     best: dict[tuple[str, str], Passage] = {}
-    for ctx in resp.contexts.contexts:
+    for i, ctx in enumerate(resp.contexts.contexts):
         source = Path(getattr(ctx, "source_uri", "") or "").name or "quality-docs"
         score = round(float(getattr(ctx, "score", 0.0)), 4)
         text = ctx.text or ""
@@ -91,7 +141,7 @@ def _search_vertex(query: str, k: int) -> list[Passage]:
         parts = re.split(r"(?m)^(Row \d+|Item \d+|D\d)\s*$", text)
         headings_found = False
         for heading, body in zip(parts[1::2], parts[2::2]):
-            quote = " ".join(body.split())[:MAX_QUOTE]
+            quote = _truncate_quote(body)
             if not quote:
                 continue
             headings_found = True
@@ -102,9 +152,12 @@ def _search_vertex(query: str, k: int) -> list[Passage]:
             # No recognisable heading landed in this chunk (e.g. a chunk that
             # is entirely a dangling continuation) — keep it, citable by
             # source only, rather than silently dropping retrieved evidence.
-            quote = " ".join(text.split())[:MAX_QUOTE]
+            # Key by (source, context index) — NOT (source, source) — so that
+            # two different headless chunks from the same document don't
+            # collide and silently drop one of them.
+            quote = _truncate_quote(text)
             if quote:
-                key = (source, source)
+                key = (source, f"{source}#{i}")
                 if key not in best or score < best[key].score:
                     best[key] = Passage(source=source, ref=source, quote=quote, score=score)
     return sorted(best.values(), key=lambda p: p.score)[:k]

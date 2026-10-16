@@ -23,7 +23,8 @@ prototype/
 │   │   ├── images/
 │   │   └── out/
 │   ├── infra/
-│   │   └── probe_models.py
+│   │   ├── probe_models.py
+│   │   └── build_rag.py
 │   ├── pyproject.toml
 │   └── pytest.ini
 ├── frontend/           # React UI (not yet created)
@@ -63,6 +64,47 @@ whenever `agent/prompts/vision.md` changes — then check the regenerated `type`
 matches the filename before committing, since neither read is perfectly stable (see
 Known issues).
 
+## Quality-document search (RAG)
+
+`agent.tools.doc_search.search_quality_docs()` has two backends behind `DOCS_BACKEND`
+(default `local`): a local embedding search over `backend/data/docs/*.md` (embeds with
+`EMBED_MODEL` through Vertex, so it alone satisfies "must use Google AI models"), and a
+Vertex AI RAG Engine corpus built by `backend/infra/build_rag.py`. Both return the same
+`Passage` shape, so the evidence agent never knows which one ran.
+
+**RAG API used: `agentplatform`, not `vertexai.rag`.** The installed SDK
+(`google-cloud-aiplatform`) marks `vertexai.rag` deprecated — importing it emits
+`UserWarning: The vertexai.rag module is deprecated ... migrate to the agentplatform
+client`. That replacement ships in the same package install (no extra dependency) and is
+a genuine drop-in: `agentplatform.init is vertexai.init` — literally the same
+`google.cloud.aiplatform.init` function object — and `agentplatform.rag` exposes the
+identical call shape (`create_corpus`, `import_files`, `retrieval_query`, `list_corpora`,
+`list_files`, `RagResource`, `RagVectorDbConfig`, `RagEmbeddingModelConfig`,
+`VertexPredictionEndpoint`, `TransformationConfig`, `ChunkingConfig`,
+`RagRetrievalConfig`), with no deprecation warning on import. So `build_rag.py` and
+`doc_search._search_vertex` import `from agentplatform import rag` instead. Both are
+confined to the vertex code path / infra script only — never imported at module load
+time, so the test suite (run with `-W error::Warning`) never touches it.
+
+**Region:** the corpus lives in `asia-south1`, same as the rest of the project's Vertex
+resources (`GCP_REGION` / `VERTEX_REGION`). Source documents are staged at
+`gs://<GCS_BUCKET>/docs/*.md` (bucket created idempotently by `build_rag.py` itself, in
+the same region).
+
+**Known asymmetry:** `Passage.score` is not comparable across backends. The local
+backend reports cosine similarity (higher is more relevant). The Vertex RAG Engine's
+native `score` is a distance (lower is more relevant) — confirmed empirically by
+requesting progressively larger `top_k` against the live corpus and observing the same
+leading contexts come back with monotonically increasing scores. `doc_search.py` sorts
+each backend by its own correct direction; it does not rescale one into the other's
+units.
+
+Run `python -m infra.build_rag` once per project to build the corpus — it uploads
+`data/docs/*.md` to GCS, creates (or reuses) the `quality-docs` corpus, imports the
+files, writes `RAG_CORPUS=...` into `.env`, and proves the corpus answers (PRD Phase 2
+gate: a test query returns PFMEA Row 14 with its source). All three steps
+(bucket, corpus, file import) are idempotent — safe to re-run.
+
 ## Known issues
 
 - **`defect_03.jpg` is the golden-path solder-bridge image for the demo** (not
@@ -84,3 +126,14 @@ Known issues).
   before/after table across both prompt revisions and all five images.
 - `pip install -e ".[dev]"` from `backend/` succeeded on Python 3.12.15, including
   `google-adk>=1.0` (resolved to 1.14.1).
+- **The Vertex RAG Engine backend's per-heading citation ranking is weaker than the
+  local backend's.** The corpus's default chunking (`chunk_size=512, chunk_overlap=64`)
+  routinely spans two full PFMEA rows per chunk; since the RAG Engine scores one chunk,
+  not one heading, a highly relevant heading sharing a chunk with an irrelevant neighbour
+  can lose a tie-break at a tight `k` cutoff. This does not affect the Phase 2 gate
+  (which checks the raw top-3 chunks, not per-heading ranking) but means
+  `search_quality_docs(..., k=3)` on `DOCS_BACKEND=vertex` does not reliably surface
+  PFMEA Row 14 / Control plan Item 6 the way the local backend does. `DOCS_BACKEND=local`
+  is the product default and does not have this weakness; see
+  `.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-6-report.md` for the measured
+  rankings on both backends.

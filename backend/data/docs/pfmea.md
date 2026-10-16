@@ -82,12 +82,12 @@ Mechanism: Component misalignment at Pick and place is caused by Placement machi
 | Severity | 6 |
 | Cause | Reflow peak temperature below profile minimum or insufficient time above liquidus |
 | Occurrence | 2 |
-| Prevention control | Profile verification after any oven maintenance |
+| Prevention control | Profile verification after any oven maintenance; confirm minimum peak temperature and time above liquidus are met |
 | Detection control | AOI 100% plus periodic cross-section audit |
 | Detection | 4 |
 | Action priority | Medium |
 
-Mechanism: Cold solder joint at Reflow soldering is caused by Reflow peak temperature below profile minimum or insufficient time above liquidus. Effect: Dull, grainy joint with poor mechanical strength; intermittent open under vibration. Prevention control: Profile verification after any oven maintenance. Detection control: AOI 100% plus periodic cross-section audit.
+Mechanism: Cold solder joint at Reflow soldering is caused by Reflow peak temperature below profile minimum or insufficient time above liquidus. Effect: Dull, grainy joint with poor mechanical strength; intermittent open under vibration. Prevention control: Profile verification after any oven maintenance; confirm minimum peak temperature and time above liquidus are met. Detection control: AOI 100% plus periodic cross-section audit.
 
 ## Row 6
 
@@ -150,12 +150,12 @@ Mechanism: Nozzle wear at Pick and place is caused by Pick-and-place nozzle wear
 | Severity | 6 |
 | Cause | Reflow peak temperature or time above liquidus below profile minimum |
 | Occurrence | 2 |
-| Prevention control | Profile verification after any oven maintenance |
+| Prevention control | Profile verification after any oven maintenance; confirm soak and ramp rates meet the paste datasheet |
 | Detection control | AOI 100% + profile check per shift |
 | Detection | 4 |
 | Action priority | Medium |
 
-Mechanism: Insufficient reflow at Reflow soldering is caused by Reflow peak temperature or time above liquidus below profile minimum. Effect: Paste not fully reflowed; grainy, non-wetted joint with open-circuit risk. Prevention control: Profile verification after any oven maintenance. Detection control: AOI 100% + profile check per shift.
+Mechanism: Insufficient reflow at Reflow soldering is caused by Reflow peak temperature or time above liquidus below profile minimum. Effect: Paste not fully reflowed; grainy, non-wetted joint with open-circuit risk. Prevention control: Profile verification after any oven maintenance; confirm soak and ramp rates meet the paste datasheet. Detection control: AOI 100% + profile check per shift.
 
 ## Row 10
 
@@ -231,16 +231,16 @@ Mechanism: Stencil blockage at Stencil printing is caused by Dried paste residue
 |---|---|
 | Process step | Reflow soldering |
 | Failure mode | Solder bridging |
-| Effect | Short circuit between adjacent pins; ECU functional failure at customer ICT |
+| Effect | Short circuit between adjacent pins from excess solder flowing between adjacent fine-pitch pads; ECU functional failure at customer ICT |
 | Severity | 8 |
 | Cause | Reflow peak temperature above profile limit |
 | Occurrence | 3 |
-| Prevention control | Profile verification after any oven maintenance |
+| Prevention control | Profile verification after any oven maintenance; confirm peak temperature does not exceed the upper profile limit |
 | Detection control | AOI 100% + profile check per shift |
 | Detection | 4 |
 | Action priority | High |
 
-Mechanism: Solder bridging at Reflow soldering is caused by Reflow peak temperature above profile limit. Effect: Short circuit between adjacent pins; ECU functional failure at customer ICT. Prevention control: Profile verification after any oven maintenance. Detection control: AOI 100% + profile check per shift.
+Mechanism: Solder bridging at Reflow soldering is caused by Reflow peak temperature above profile limit. Effect: Short circuit between adjacent pins from excess solder flowing between adjacent fine-pitch pads; ECU functional failure at customer ICT. Prevention control: Profile verification after any oven maintenance; confirm peak temperature does not exceed the upper profile limit. Detection control: AOI 100% + profile check per shift.
 
 ## Row 15
 
