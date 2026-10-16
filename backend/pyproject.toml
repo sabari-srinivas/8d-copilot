@@ -18,6 +18,7 @@ dependencies = [
   "scipy>=1.14",
   "matplotlib>=3.9",
   "openpyxl>=3.1",
+  "pillow>=10.4",
 ]
 
 [project.optional-dependencies]

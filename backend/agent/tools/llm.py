@@ -1,5 +1,4 @@
 """The only place a Gemini client is constructed. Model IDs come from env, never from code."""
-import json
 import logging
 from functools import lru_cache
 from pathlib import Path
@@ -57,7 +56,10 @@ def generate_structured(prompt: str, schema: type[T], *, parts: list | None = No
                              schema=schema.model_json_schema(), temperature=temperature)
         try:
             return schema.model_validate_json(text)
-        except (ValidationError, json.JSONDecodeError) as exc:
+        except ValidationError as exc:
+            # Pydantic v2's model_validate_json raises ValidationError (not
+            # json.JSONDecodeError) for malformed JSON too, so one except clause
+            # covers both "not JSON" and "JSON but wrong shape".
             last = exc
             # Log the error, never the payload — it may contain image-derived content.
             log.warning("structured output failed validation (attempt %d): %s",

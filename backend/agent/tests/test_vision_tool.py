@@ -36,16 +36,19 @@ def test_defect_image_returns_a_typed_defect(stub):
     assert len(d.visual_evidence) > 10
 
 
-def test_clean_board_fixture_wires_through_the_recorded_type(stub):
+def test_clean_board_returns_none_type(stub):
     # vision_clean_board.json is a genuine recorded Gemini response for
-    # data/images/no_defect_01.jpg, the VisA dataset's own "normal" board.
-    # Gemini does NOT reliably read this image as defect-free: across repeated
-    # live calls it alternated between `misalignment` and `contamination`,
-    # never `none` (see task-5-report.md). This fixture records one such real
-    # response rather than inventing a `none` answer the model never gave.
+    # data/images/no_defect_01.jpg, the VisA dataset's own "normal" board, taken
+    # AFTER vision.md was tightened to explicitly list what does not count as a
+    # defect (flux residue, dust, glare, normal tolerance) and to resolve
+    # uncertainty toward `none`. Before that tightening this same image never
+    # returned `none` across four live calls (see task-5-report.md); after it,
+    # three straight calls all returned `none` at confidence 1.0, and this
+    # fixture is one of them.
     payload = stub("vision_clean_board.json")
     d = vision_tool.analyze_defect_image((FX / "tiny.jpg").read_bytes(), "image/jpeg")
-    assert d.type == payload["type"]
+    assert d.type == "none"
+    assert payload["type"] == "none"
 
 
 def test_empty_image_bytes_raise_before_any_model_call():
