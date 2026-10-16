@@ -1,5 +1,11 @@
 """The heart of the pipeline. The model proposes hypotheses and nothing else: every
-verdict, p-value and effect size on this page comes back from `test_hypothesis`."""
+verdict, p-value and effect size on this page comes back from `test_hypothesis`.
+
+Convention (see agent/agents/__init__.py): every blocking Gemini/embedding call in this
+package runs through `asyncio.to_thread` so the event loop stays free for the SSE stream
+and every other request while this agent is working. `test_hypothesis` is NOT threaded:
+it is local numpy/scipy/pandas computation on an in-memory frame, no network call."""
+import asyncio
 import logging
 
 from pydantic import BaseModel, Field
@@ -46,7 +52,8 @@ async def run(inv_id: str, lot_id: str, defect: Defect,
               traveler_note: str = "") -> tuple[list[Hypothesis], list[HypothesisResult],
                                                 list[MemoryEntry]]:
     await bus.publish(inv_id, "investigator", "step_started", "Checking quality memory")
-    hits = search_quality_memory(defect.type, f"{defect.type} {defect.visual_evidence}")
+    hits = await asyncio.to_thread(search_quality_memory, defect.type,
+                                   f"{defect.type} {defect.visual_evidence}")
     for hit in hits:
         await bus.publish(inv_id, "investigator", "memory_hit",
                           f"Similar past case found: {hit.capa_id}",
@@ -82,7 +89,8 @@ async def run(inv_id: str, lot_id: str, defect: Defect,
               f"Maintenance events on this line: {events}\n"
               f"Quality memory hits: {[h.model_dump() for h in hits]}\n"
               f"Shift-lead notes: {traveler_note or 'none'}\n")
-    proposed = _renumber(generate_structured(prompt, HypothesisList).hypotheses)
+    generated = await asyncio.to_thread(generate_structured, prompt, HypothesisList)
+    proposed = _renumber(generated.hypotheses)
 
     results: list[HypothesisResult] = []
     for hypothesis in proposed:

@@ -5,7 +5,14 @@ ranked down to a single winner. The measured margins in this corpus are thin —
 Row 14 wins its query by 0.069 and Control plan Item 6 by 0.050, because several PFMEA
 rows share near-identical maintenance wording — so no logic here may depend on a
 particular document coming first. The evidence screen shows several citation cards.
+
+Convention (see agent/agents/__init__.py): every blocking Gemini/embedding call in this
+package runs through `asyncio.to_thread` so the event loop stays free for the SSE stream
+and every other request while this agent is working. `search_quality_docs` embeds the
+query (and, on an empty cache, the whole corpus) so it is threaded.
 """
+import asyncio
+
 from agent.events import bus
 from agent.models import Citation, Investigation, Passage
 from agent.tools.doc_search import search_quality_docs
@@ -64,7 +71,7 @@ async def run(inv_id: str, inv: Investigation) -> list[Citation]:
                           "Searching the quality documents", detail=query,
                           data={"tool": "search_quality_docs",
                                 "args": {"query": query, "k": K}})
-        for passage in search_quality_docs(query, k=K):
+        for passage in await asyncio.to_thread(search_quality_docs, query, k=K):
             key = (passage.source, passage.ref)
             if key in seen:
                 continue

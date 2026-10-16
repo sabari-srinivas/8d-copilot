@@ -5,7 +5,12 @@ the window statistics. Those are what let it ground "five of the six lots in the
 window exceeded the limit" while reporting the complained-about lot's own peak honestly —
 L2611 sits BELOW the 250 °C limit even though it is inside the drifted window, and
 agent/prompts/writer.md forbids claiming otherwise.
+
+Convention (see agent/agents/__init__.py): every blocking Gemini/embedding call in this
+package runs through `asyncio.to_thread` so the event loop stays free for the SSE stream
+and every other request while this agent is working.
 """
+import asyncio
 import json
 
 from pydantic import BaseModel
@@ -63,7 +68,8 @@ async def run(inv_id: str, inv: Investigation,
               f"The complained-about lot is {inv.lot_id}. "
               f"peak_limit_breaches.lot_ids lists the lots whose own peak temperature "
               f"actually exceeded the limit — do not assert it of any other lot.\n")
-    drafted = generate_structured(prompt, WriterOutput, temperature=0.3)
+    drafted = await asyncio.to_thread(generate_structured, prompt, WriterOutput,
+                                      temperature=0.3)
 
     # Deterministic Python decides the status, not the model (CLAUDE.md rule 1). With no
     # supported hypothesis there is no verified root cause, so there is no 8D to sign; and
