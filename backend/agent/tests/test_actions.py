@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 import pytest
 
 from agent.agents import actions
@@ -188,3 +191,79 @@ async def test_a_failure_after_claiming_still_blocks_a_second_approval_without_d
     # No second CAPA or hold was created by the retry attempt.
     assert store.get_record("capa", "CAPA-0143") is None
     assert store.get_record("hold", "H-78") is None
+
+
+class RacyStore(MemoryStateStore):
+    """Adds a deliberate delay to get_investigation/save_investigation — long enough
+    that two nearly-simultaneous apply_approval calls can genuinely interleave inside
+    the claim-check-then-write window, the way two real STATE_BACKEND=firestore round
+    trips (measured at 0.1-0.6s each in the task 14 report) would. Plain
+    MemoryStateStore calls return instantly, which would make a concurrency test here
+    depend on being unlucky with thread scheduling rather than reliably exercising the
+    race."""
+    def get_investigation(self, inv_id):
+        time.sleep(0.05)
+        return super().get_investigation(inv_id)
+
+    def save_investigation(self, inv):
+        time.sleep(0.05)
+        return super().save_investigation(inv)
+
+
+@pytest.fixture
+def racy_store(monkeypatch):
+    s = RacyStore()
+    monkeypatch.setattr(actions, "get_state", lambda: s)
+    monkeypatch.setattr("agent.tools.memory.get_state", lambda: s)
+    monkeypatch.setattr("agent.tools.memory.embed", lambda texts: [[1.0, 0.0] for _ in texts])
+    monkeypatch.setattr(actions, "generate_structured", lambda *a, **k: actions.Replies(
+        ja="いつもお世話になっております。", en="Thank you for your continued support."))
+    return s
+
+
+@pytest.mark.asyncio
+async def test_two_concurrent_approvals_create_exactly_one_set_of_records(racy_store):
+    """Task 14 review, round 2: threading state.save_investigation/create_record put
+    real `await` points in a path that previously had none at all, reopening the
+    duplicate-CAPA race under genuine concurrency — not the sequential retry
+    `test_approving_twice_is_rejected` and `test_a_failure_after_claiming_...` above
+    already cover, where the second call fully awaits the first before ever starting.
+
+    Two /approve calls for the same inv_id, issued together via asyncio.gather so they
+    genuinely overlap (as two near-simultaneous HTTP requests would), must settle on
+    exactly one winner and exactly one of each record — not two CAPAs for one defect.
+
+    Each "request" gets its OWN independent Investigation object (two separate `_inv()`
+    calls), not two references to the one `MemoryStateStore.get_investigation` returns
+    (which hands back the literal stored object, not a copy): two real HTTP requests
+    each deserialize their own copy from the state store, and a test that let both
+    coroutines share one Python object would have one coroutine's `inv.status =
+    "approved"` mutation instantly visible to the other through that shared reference,
+    masking the race this test exists to catch behind an aliasing accident instead of
+    the real fix."""
+    racy_store.save_investigation(_inv())  # both "requests" read an already-stored inv,
+                                           # as they would via main.py's GET first
+
+    results = await asyncio.gather(
+        actions.apply_approval(_inv(), approver="Priya R.",
+                               edits={}, rejected_action_ids=[], note=""),
+        actions.apply_approval(_inv(), approver="Vik S.",
+                               edits={}, rejected_action_ids=[], note=""),
+        return_exceptions=True)
+
+    successes = [r for r in results if not isinstance(r, BaseException)]
+    failures = [r for r in results if isinstance(r, BaseException)]
+    assert len(successes) == 1, f"expected exactly one winner, got: {results}"
+    assert len(failures) == 1 and isinstance(failures[0], ValueError), \
+        f"expected exactly one ValueError loser, got: {results}"
+    assert "already approved" in str(failures[0])
+
+    # Exactly one of each record exists — not two CAPAs/holds/work orders for one
+    # investigation. CAPA-0143/H-78/WO-413 are the ids a second, un-prevented creation
+    # would have taken (agent.state's id counters are sequential per kind).
+    assert racy_store.get_record("capa", "CAPA-0142") is not None
+    assert racy_store.get_record("capa", "CAPA-0143") is None
+    assert racy_store.get_record("hold", "H-77") is not None
+    assert racy_store.get_record("hold", "H-78") is None
+    assert racy_store.get_record("work_order", "WO-412") is not None
+    assert racy_store.get_record("work_order", "WO-413") is None

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { approve, getInvestigationReady } from "../api/client";
 import { useInvestigationStream } from "../api/useInvestigationStream";
@@ -43,6 +43,16 @@ export function Review() {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A ref, not just the `submitting` state above, guards re-entry into onApprove.
+  // Two click events dispatched before React re-renders both invoke onApprove from
+  // the SAME closure — the one captured at the last render, where `submitting` is
+  // still `false` for both, since a state setter does not mutate the variable an
+  // already-running closure is holding, it only schedules a future render with a new
+  // one. `submittingRef.current` is a plain mutable property on a stable object, so
+  // writing it in the first invocation is visible to the second immediately, with no
+  // re-render required — the correct primitive for a synchronous re-entrancy guard in
+  // React, where `submitting` itself is for the "Approving…"/disabled UI state only.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (!id || stream.status === "running") return;
@@ -84,6 +94,14 @@ export function Review() {
 
   async function onApprove() {
     if (!id) return;
+    // Defence in depth against a double-click (task 14 review: threading the
+    // backend's apply_approval reopened a server-side duplicate-CAPA race under
+    // concurrency, closed there with a lock; this is the client-side half). See the
+    // `submittingRef` declaration above for why this checks the ref, not `submitting`
+    // itself — the disabled attribute further down is the UI-visible layer, this is
+    // the one that actually stops a second in-flight request.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
@@ -97,6 +115,7 @@ export function Review() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not approve the 8D.");
       setSubmitting(false);
+      submittingRef.current = false;
     }
   }
 
