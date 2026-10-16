@@ -1,0 +1,12 @@
+{
+  "type": "contamination",
+  "severity": "minor",
+  "box": [
+    0.15,
+    0.15,
+    0.7,
+    0.7
+  ],
+  "confidence": 0.9,
+  "visual_evidence": "Small white specks are visible on the blue surface of the printed circuit board."
+}
