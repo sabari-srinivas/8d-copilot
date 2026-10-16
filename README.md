@@ -126,10 +126,19 @@ documents, call site by call site, which plant/state/files calls run through
 under `PLANT_BACKEND=bigquery` / `STATE_BACKEND=firestore` / `FILES_BACKEND=gcs` the exact
 same call sites become real network I/O, made from `async def` agent code on the single
 asyncio event loop that also serves the SSE stream and `GET /api/health` (task 10's fix
-protects this same loop from the model calls). A future call into a `*_BACKEND`-selected
-tool from async code must follow the same convention — see the task 14 report
-(`.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-14-report.md`) for the measured
-before/after latency per selector.
+protects this same loop from the model calls). That list covers every `async def` in
+`agent/` that reaches `agent/state.py` or `agent/tools/` — `orchestrator.py`'s eight
+`save_investigation`/`get_investigation` calls, `main.py`'s `approve` route,
+`actions.py`'s `create_record` calls and `writer.py`'s `grounded_facts`/
+`allowed_numbers` all needed the same fix as the plant/files calls task 14 first found,
+and `events.py`'s `publish()` threads its Firestore write *after* fanning out to live
+subscribers, not before, so two concurrent publishers (intake and vision) can't have
+their persistence order reorder the live SSE trace. A future call into a
+`*_BACKEND`-selected tool from async code must follow the same convention — grep for
+every call into `agent/state.py` and `agent/tools/` from every `async def` in `agent/`,
+not just the files that look risky — see the task 14 report
+(`.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-14-report.md`) for the full
+audit table and the measured before/after latency per selector.
 
 **Cross-backend data-shape note.** `bigquery.QueryJob.to_dataframe()` returns a DATE
 column as `datetime.date` objects (dtype `dbdate`), not a plain string the way

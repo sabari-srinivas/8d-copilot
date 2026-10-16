@@ -8,7 +8,11 @@ agent/prompts/writer.md forbids claiming otherwise.
 
 Convention (see agent/agents/__init__.py): every blocking Gemini/embedding call in this
 package runs through `asyncio.to_thread` so the event loop stays free for the SSE stream
-and every other request while this agent is working.
+and every other request while this agent is working. `grounded_facts` and
+`allowed_numbers` (`agent/tools/provenance.py`) are threaded too (task 14 follow-up):
+both call `get_process_window`/`get_maintenance_events`/`get_lot_genealogy`/`joined`,
+network calls under PLANT_BACKEND=bigquery — missed in the original audit because
+`provenance.py` was not one of the files task 14 touched directly.
 """
 import asyncio
 import json
@@ -54,7 +58,7 @@ async def run(inv_id: str, inv: Investigation,
     await bus.publish(inv_id, "writer", "step_started",
                       "Drafting the 8D" if supported else "Checking whether the evidence is enough")
 
-    facts = grounded_facts(inv, complaint)
+    facts = await asyncio.to_thread(grounded_facts, inv, complaint)
     prompt = (f"{load_prompt('writer')}\n\n"
               f"Complaint: {inv.complaint_id}, lot {inv.lot_id}\n"
               f"Defect: {inv.defect.model_dump() if inv.defect else None}\n"
@@ -85,7 +89,8 @@ async def run(inv_id: str, inv: Investigation,
                            missing_data=drafted.missing_data or _missing_data_fallback(inv))
 
     if out.eight_d:
-        violations = check_numbers(out.eight_d, allowed_numbers(inv, complaint))
+        allowed = await asyncio.to_thread(allowed_numbers, inv, complaint)
+        violations = check_numbers(out.eight_d, allowed)
         if violations:
             await bus.publish(inv_id, "system", "error",
                               "Numbers in the draft are not backed by a tool result",

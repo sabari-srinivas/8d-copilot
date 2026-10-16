@@ -117,7 +117,11 @@ def get_investigation(inv_id: str):
 
 @app.post("/api/investigations/{inv_id}/approve")
 async def approve(inv_id: str, body: ApproveRequest):
-    inv = get_state().get_investigation(inv_id)
+    # Threaded (task 14 follow-up): under STATE_BACKEND=firestore this is a network
+    # read, made from an async route — the same event-loop freeze risk as the model
+    # calls. GET /api/investigations/{id} above stays a sync `def` (Starlette already
+    # runs those off its own thread pool), so it does not need this.
+    inv = await asyncio.to_thread(get_state().get_investigation, inv_id)
     if inv is None:
         raise HTTPException(404, f"no investigation {inv_id}")
     if inv.status != "draft_ready":

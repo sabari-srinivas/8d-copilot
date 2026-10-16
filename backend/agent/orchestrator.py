@@ -59,7 +59,11 @@ async def start(*, complaint_id: str, lot_id: str, image_bytes: bytes, mime_type
     inv = Investigation(id=inv_id, complaint_id=complaint_id, lot_id=lot_id, status="running",
                         created=datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         photo_url=photo_url)
-    get_state().save_investigation(inv)
+    # Threaded (task 14 follow-up): under STATE_BACKEND=firestore every one of this
+    # function's and run_investigation's state calls below is a network round trip,
+    # made from async code — the same risk as append_event, which task 14 threaded,
+    # but these were missed in the original audit (see agent/agents/__init__.py).
+    await asyncio.to_thread(get_state().save_investigation, inv)
     await bus.publish(inv_id, "system", "step_started", "Investigation started",
                       detail=f"Complaint {complaint_id} · lot {lot_id}")
     return inv_id
@@ -100,7 +104,7 @@ async def run_investigation(inv_id: str) -> None:
         # run, leaving the investigation stuck at status="running" forever for a
         # polling client — the exact bug the "failed" status was added to close.
         state = get_state()
-        inv = state.get_investigation(inv_id)
+        inv = await asyncio.to_thread(state.get_investigation, inv_id)
         upload = _uploads.get(inv_id, {})
         if inv is None:
             raise KeyError(f"unknown investigation {inv_id} — call start() first")
@@ -145,12 +149,12 @@ async def run_investigation(inv_id: str) -> None:
 
         inv.traveler_rows = traveler_rows
         inv.defect = defect
-        state.save_investigation(inv)
+        await asyncio.to_thread(state.save_investigation, inv)
 
         if inv.defect.type == "none":
             inv.status = "insufficient_evidence"
             inv.missing_data = [NO_DEFECT_VISIBLE]
-            state.save_investigation(inv)
+            await asyncio.to_thread(state.save_investigation, inv)
             await bus.publish(inv_id, "writer", "draft_ready",
                               "Insufficient evidence — escalate",
                               detail=inv.missing_data[0],
@@ -164,10 +168,10 @@ async def run_investigation(inv_id: str) -> None:
         groups = await asyncio.to_thread(get_comparison_groups, inv.lot_id)
         inv.hold_lots = groups["defect_lots"]
         inv.chart_url = next((r.chart_url for r in inv.results if r.chart_url), None)
-        state.save_investigation(inv)
+        await asyncio.to_thread(state.save_investigation, inv)
 
         inv.citations = await evidence.run(inv_id, inv)
-        state.save_investigation(inv)
+        await asyncio.to_thread(state.save_investigation, inv)
 
         out = await writer.run(inv_id, inv, complaint)
         inv.eight_d = out.eight_d
@@ -177,7 +181,7 @@ async def run_investigation(inv_id: str) -> None:
             # Threaded (task 14): _propose_actions calls get_lot_genealogy, a network
             # call under PLANT_BACKEND=bigquery.
             inv.proposed_actions = await asyncio.to_thread(_propose_actions, inv)
-        state.save_investigation(inv)
+        await asyncio.to_thread(state.save_investigation, inv)
     except Exception as exc:
         log.exception("investigation %s failed", inv_id)
         message = format_error_message(exc)
@@ -195,7 +199,7 @@ async def run_investigation(inv_id: str) -> None:
             try:
                 inv.status = "failed"
                 inv.missing_data = [message]
-                state.save_investigation(inv)
+                await asyncio.to_thread(state.save_investigation, inv)
             except Exception:
                 log.exception("investigation %s: could not persist the failed status",
                               inv_id)

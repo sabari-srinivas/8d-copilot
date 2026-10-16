@@ -37,14 +37,27 @@ class EventBus:
                         .replace("+00:00", "Z"),
                       agent=agent, type=type, title=title, detail=detail, data=data or {})
         # History then queues, with no await in between, so a subscriber can never
-        # observe the event in one and miss it in the other.
+        # observe the event in one and miss it in the other. Both happen before the
+        # threaded persistence call below, not after — see the note there.
         self._history[inv_id].append(event)
-        # Threaded (task 14): under STATE_BACKEND=firestore this is a network write,
-        # on every single published event — the exact SSE path task 10 threaded the
-        # model calls to protect. See agent/agents/__init__.py.
-        await asyncio.to_thread(get_state().append_event, inv_id, event)
         for queue in list(self._subscribers[inv_id]):
             queue.put_nowait(event)
+        # Threaded (task 14): under STATE_BACKEND=firestore this is a network write, on
+        # every single published event — the exact SSE path task 10 threaded the model
+        # calls to protect. See agent/agents/__init__.py.
+        #
+        # Deliberately AFTER history/fan-out, not before (task 14 review fix). intake
+        # and vision run as concurrent tasks and each publish their own events for the
+        # same inv_id; putting the `await` before `queue.put_nowait` let their worker
+        # threads finish in either order, so a live subscriber could see a higher-seq
+        # event delivered before a lower-seq one even though `_history` and Firestore
+        # both end up correctly ordered (append_event keys by seq; events() reads
+        # order_by("seq")) — only the live stream has no reordering beyond the
+        # one-time replay check in subscribe(). Putting fan-out first means delivery
+        # order to a live subscriber always matches seq, the persistence write still
+        # never blocks the loop, and a persistence failure here costs only the stored
+        # copy, not the live trace the user is watching.
+        await asyncio.to_thread(get_state().append_event, inv_id, event)
         return event
 
     async def subscribe(self, inv_id: str) -> AsyncIterator[Event]:

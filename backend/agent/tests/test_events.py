@@ -149,6 +149,48 @@ async def test_history_is_a_copy_and_is_also_written_to_the_state_store(monkeypa
 
 
 @pytest.mark.asyncio
+async def test_concurrent_publishers_deliver_in_seq_order_despite_a_slow_append_event(
+        monkeypatch):
+    """Task 14 review fix. `publish()` must fan out to live subscribers (history +
+    queue) before awaiting the threaded persistence write, not after. intake and vision
+    (or any two agents) run as separate asyncio Tasks publishing against the same
+    inv_id, so their publish() calls' *threaded* append_event work can finish in either
+    order; if the live queue push happened after that await (the pre-fix order), the
+    lower-seq event's slower persistence write would let the higher-seq event's faster
+    write reach a live subscriber first — a live trace that briefly runs out of seq
+    order even though both `_history` and the state store end up correctly ordered.
+
+    Simulated directly with a fake store whose append_event sleeps far longer on its
+    first call (the lower-seq event) than its second — the exact adversarial ordering
+    that breaks live delivery under the pre-fix code and must not under the fixed code.
+    """
+    import time
+
+    calls = 0
+
+    class SlowFirstCallStore:
+        def append_event(self, inv_id, event):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                time.sleep(0.15)   # the lower-seq event's write finishes LAST
+
+    monkeypatch.setattr("agent.events.get_state", lambda: SlowFirstCallStore())
+    bus = EventBus()
+
+    task = asyncio.create_task(_take(bus, "inv_1", 2))
+    await asyncio.sleep(0.02)   # let the subscriber register before either publish
+
+    first = asyncio.create_task(bus.publish("inv_1", "intake", "step_started", "first"))
+    second = asyncio.create_task(bus.publish("inv_1", "vision", "step_started", "second"))
+    await asyncio.gather(first, second)
+
+    got = await asyncio.wait_for(task, timeout=2)
+    assert [e.title for e in got] == ["first", "second"]
+    assert [e.seq for e in got] == [0, 1]
+
+
+@pytest.mark.asyncio
 async def test_a_subscriber_that_stops_early_is_unregistered():
     """An SSE client that disconnects mid-run must not leave its queue behind to be
     filled for the life of the process. Starlette closes the generator on disconnect,

@@ -5,7 +5,9 @@ Convention (see agent/agents/__init__.py): every blocking Gemini/embedding call 
 package runs through `asyncio.to_thread` so the event loop stays free for the SSE stream
 and every other request while this agent is working. `save_quality_memory` embeds under
 the hood, so it goes through `asyncio.to_thread` here too, the same as
-`investigator.py`'s `search_quality_memory` call.
+`investigator.py`'s `search_quality_memory` call. `state.save_investigation` and
+`state.create_record` are threaded too (task 14 follow-up): under STATE_BACKEND=firestore
+both are network calls made from this async function.
 """
 import asyncio
 import logging
@@ -59,7 +61,7 @@ async def apply_approval(inv: Investigation, *, approver: str, edits: dict[str, 
     # first, means a retry always hits main.py's 409 instead.
     inv.status = "approved"
     inv.approver = approver
-    state.save_investigation(inv)
+    await asyncio.to_thread(state.save_investigation, inv)
 
     accepted = {a.id: a for a in inv.proposed_actions if a.id not in rejected_action_ids}
     cause = _confirmed_cause(inv)
@@ -70,17 +72,17 @@ async def apply_approval(inv: Investigation, *, approver: str, edits: dict[str, 
 
     for action in accepted.values():
         if action.kind == "capa":
-            out["capa_id"] = state.create_record("capa", {
+            out["capa_id"] = await asyncio.to_thread(state.create_record, "capa", {
                 "investigation_id": inv.id, "complaint_id": inv.complaint_id,
                 "lot_id": inv.lot_id, "root_cause": cause, "owner": "Quality Manager",
                 "opened": date.today().isoformat(), "status": "open",
                 "summary": action.summary, "approver": approver, "note": note})
         elif action.kind == "hold":
-            out["hold_id"] = state.create_record("hold", {
+            out["hold_id"] = await asyncio.to_thread(state.create_record, "hold", {
                 "investigation_id": inv.id, "lots": action.payload.get("lots", inv.hold_lots),
                 "reason": cause, "raised": date.today().isoformat(), "status": "active"})
         elif action.kind == "work_order":
-            out["work_order_id"] = state.create_record("work_order", {
+            out["work_order_id"] = await asyncio.to_thread(state.create_record, "work_order", {
                 "investigation_id": inv.id, "line": action.payload.get("line", ""),
                 "asset": action.payload.get("asset", ""),
                 "description": action.payload.get("description", ""),
