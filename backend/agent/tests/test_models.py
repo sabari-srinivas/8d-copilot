@@ -1,6 +1,8 @@
+from datetime import date
+
 import pytest
 from agent.config import Settings
-from agent.models import Defect, Hypothesis, HypothesisResult, EightD, Investigation, Event
+from agent.models import Complaint, Defect, Hypothesis, HypothesisResult, EightD, Investigation, Event
 
 
 def test_model_name_must_come_from_env():
@@ -71,3 +73,38 @@ def test_event_rejects_unknown_type():
 def test_event_rejects_unknown_agent():
     with pytest.raises(ValueError):
         Event(seq=0, ts="2026-10-16T10:02:00.000Z", agent="bogus", type="done", title="x")
+
+
+def _complaint(received, eight_d_due):
+    return Complaint(complaint_id="C-x", customer="x", product="x", lot_id="L1",
+                     defect="x", received=received, eight_d_due=eight_d_due)
+
+
+@pytest.mark.parametrize("nullish", ["null", "NULL", "None", "n/a", "N/A", "na",
+                                     "NA", "-", "unknown", "Unknown", "  null  "])
+def test_complaint_blanks_out_nullish_text_in_date_fields(nullish):
+    c = _complaint(nullish, nullish)
+    assert c.received == ""
+    assert c.eight_d_due == ""
+
+
+def test_complaint_maps_real_none_to_empty_string():
+    c = _complaint(None, None)
+    assert c.received == ""
+    assert c.eight_d_due == ""
+
+
+def test_complaint_leaves_a_real_date_alone():
+    c = _complaint("2026-10-15", "2026-10-29")
+    assert c.received == "2026-10-15"
+    assert c.eight_d_due == "2026-10-29"
+
+
+@pytest.mark.parametrize("nullish", ["null", None, "none", "n/a", "-", "unknown"])
+def test_complaint_eight_d_due_never_parses_as_neither_date_nor_empty(nullish):
+    """The contract the validator must uphold: eight_d_due is either a real
+    ISO date or an empty string -- never a string date.fromisoformat chokes on."""
+    c = _complaint("2026-10-15", nullish)
+    if c.eight_d_due == "":
+        return
+    date.fromisoformat(c.eight_d_due)  # must not raise

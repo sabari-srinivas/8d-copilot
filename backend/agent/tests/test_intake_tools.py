@@ -5,6 +5,7 @@ import pytest
 
 from agent.models import Complaint
 from agent.tools import intake_tools as it
+from data.constants import GOLDEN_BRIDGES, GOLDEN_LOT, PRODUCT
 
 XLSX = Path(__file__).resolve().parents[2] / "data" / "out" / "lot_traveler_line2_wk41.xlsx"
 
@@ -18,14 +19,15 @@ def test_working_days_skip_weekends():
 
 def test_complaint_parsing_pulls_the_fields(monkeypatch):
     monkeypatch.setattr(it, "generate_structured", lambda *a, **k: Complaint(
-        complaint_id="", customer="Hoshino Denso (fictional)", product="ECU-PCB-7",
-        lot_id="L2611", defect="solder_bridge", qty_affected=14, qty_shipped=500,
+        complaint_id="", customer="Hoshino Denso (fictional)", product=PRODUCT,
+        lot_id=GOLDEN_LOT, defect="solder_bridge", qty_affected=GOLDEN_BRIDGES, qty_shipped=500,
         eight_d_due="2026-10-29"))
-    c = it.parse_complaint("Solder bridging found on ECU-PCB-7, lot 2611, 14 of 500 units...",
+    c = it.parse_complaint(f"Solder bridging found on {PRODUCT}, lot 2611, "
+                           f"{GOLDEN_BRIDGES} of 500 units...",
                            complaint_id="C-2026-031")
     assert c.complaint_id == "C-2026-031"
-    assert c.lot_id == "L2611"
-    assert c.qty_affected == 14
+    assert c.lot_id == GOLDEN_LOT
+    assert c.qty_affected == GOLDEN_BRIDGES
 
 
 def test_traveler_finds_the_header_below_the_title_rows():
@@ -36,8 +38,8 @@ def test_traveler_finds_the_header_below_the_title_rows():
 
 def test_traveler_normalises_short_lot_numbers_and_dd_mm_dates():
     rows = {r.lot_id: r for r in it.parse_lot_traveler(XLSX.read_bytes())}
-    assert "L2611" in rows
-    assert rows["L2611"].date.startswith("2026-")
+    assert GOLDEN_LOT in rows
+    assert rows[GOLDEN_LOT].date.startswith("2026-")
 
 
 def test_same_as_prev_becomes_null_and_is_flagged_low_confidence():
@@ -49,12 +51,12 @@ def test_same_as_prev_becomes_null_and_is_flagged_low_confidence():
 
 def test_free_text_remarks_survive():
     rows = {r.lot_id: r for r in it.parse_lot_traveler(XLSX.read_bytes())}
-    assert "U7" in rows["L2611"].remarks
+    assert "U7" in rows[GOLDEN_LOT].remarks
 
 
 def test_traveler_bridge_counts_match_the_plant_record():
     rows = {r.lot_id: r for r in it.parse_lot_traveler(XLSX.read_bytes())}
-    assert rows["L2611"].aoi_bridges == 14
+    assert rows[GOLDEN_LOT].aoi_bridges == GOLDEN_BRIDGES
 
 
 def test_a_file_that_is_not_a_spreadsheet_raises():

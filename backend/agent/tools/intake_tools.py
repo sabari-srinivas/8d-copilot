@@ -9,6 +9,7 @@ from openpyxl import load_workbook
 from agent.models import Complaint, TravelerRow
 from agent.tools.llm import generate_structured, load_prompt
 from agent.tools.plant_data import get_store
+from data.constants import SCENARIO_YEAR
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +26,6 @@ COLUMN_ALIASES = {
     "remarks": "remarks", "remark": "remarks", "notes": "remarks",
 }
 NON_NUMERIC = re.compile(r"[^0-9.\-]")
-DEFAULT_YEAR = 2026
 
 
 def working_days_between(start: date, end: date) -> int:
@@ -50,7 +50,7 @@ def _norm_date(value) -> str:
     for fmt in ("%d/%m", "%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d"):
         try:
             parsed = datetime.strptime(text, fmt)
-            return parsed.replace(year=DEFAULT_YEAR).date().isoformat() \
+            return parsed.replace(year=SCENARIO_YEAR).date().isoformat() \
                 if fmt == "%d/%m" else parsed.date().isoformat()
         except ValueError:
             continue

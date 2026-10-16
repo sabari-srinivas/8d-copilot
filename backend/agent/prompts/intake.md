@@ -19,5 +19,8 @@ Rules:
   not confident of it, leave it null. Never guess or invent a value to fill a field.
 - Do not infer a date relative to "today" — only use a date if one is explicitly written.
 - Keep every value short and literal; do not paraphrase numbers or names.
+- For a text field with no value (for example `received` or `eight_d_due` when no date is
+  stated), reply with an empty string `""`. Never write the word "null", "none", "n/a" or
+  similar as the text content of a field — only use JSON's own null, or an empty string.
 
 Reply with JSON only.

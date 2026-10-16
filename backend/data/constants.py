@@ -6,8 +6,9 @@ OP17_L1_SHARE = 0.25           # tuned so H4 (operator OP-17) lands inconclusive
 PRODUCT = "ECU-PCB-7"
 PLANT = "Sree Electronics (fictional), Chennai"
 
-START_DATE = "2026-09-14"
-END_DATE = "2026-10-13"
+SCENARIO_YEAR = 2026            # the year every planted date in this scenario falls in
+START_DATE = f"{SCENARIO_YEAR}-09-14"
+END_DATE = f"{SCENARIO_YEAR}-10-13"
 WO388_ID = "WO-388"
 WO388_DATE = "2026-10-08"      # reflow oven zone 7 heater replaced, profile verification pending
 WO386_DATE = "2026-10-07"      # new stencil ST-07B installed on Line 2

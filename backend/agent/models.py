@@ -1,6 +1,11 @@
 """Every model that crosses a boundary. Field names here ARE the API contract."""
 from typing import Literal
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+# Words a structured-output model sometimes writes as text in place of an actual
+# null/absent value for a non-Optional string field (the JSON Schema for `str` has
+# no way to express "no value", so the model falls back to writing the word).
+_NULLISH_TEXT = {"null", "none", "n/a", "na", "-", "unknown"}
 
 DefectType = Literal["solder_bridge", "missing_component", "misalignment",
                      "scratch", "contamination", "other", "none"]
@@ -28,6 +33,19 @@ class Complaint(BaseModel):
     status: Literal["open", "closed"] = "open"
     text: str = ""
     due_in_working_days: int | None = None
+
+    @field_validator("received", "eight_d_due", mode="before")
+    @classmethod
+    def _blank_out_nullish_text(cls, v):
+        """A structured-output model may send JSON null or the word "null" (etc.)
+        for a date it doesn't have. Either way, downstream code (the inbox
+        countdown, GET /complaints) must see an empty string, never a string
+        that `date.fromisoformat` chokes on."""
+        if v is None:
+            return ""
+        if isinstance(v, str) and v.strip().lower() in _NULLISH_TEXT:
+            return ""
+        return v
 
 
 class Defect(BaseModel):
