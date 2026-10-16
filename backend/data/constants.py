@@ -32,10 +32,18 @@ MIN_EFFECT = {
     "stencil_print_count": 5000.0,
     "squeegee_pressure_kg": 0.5,
     "operator_id": 0.15,           # difference in share of lots, 0-1
-    "stencil_id": 0.15,            # difference in share of lots, 0-1
-    "paste_lot": 0.15,             # difference in share of lots, 0-1
 }
 
+# stencil_id and paste_lot are deliberately NOT testable parameters: categorical
+# stencil/paste identity is perfectly collinear with the WO-388 window (ST-07B was
+# installed by WO-386 on 2026-10-07, one day before the oven heater work WO-388
+# fixed on 2026-10-08 -- every drift lot carries both). classify() has no notion of
+# confounding, so a bare categorical test on stencil_id returns a confident
+# `supported` for a nuisance variable it cannot distinguish from the true cause.
+# Test stencil wear through `stencil_print_count` instead, which correctly REJECTS
+# on direction (a new stencil means FEWER prints, not more) -- the clearest
+# demonstration of the direction-aware verdict rule. Do not re-add stencil_id or
+# paste_lot here without first breaking that collinearity in the dataset.
 PARAM_UNITS = {
     "reflow_peak_temp_c": "°C",
     "time_above_liquidus_s": "s",
@@ -47,15 +55,13 @@ PARAM_UNITS = {
     "stencil_print_count": "prints",
     "squeegee_pressure_kg": "kg",
     "operator_id": "share of lots",
-    "stencil_id": "share of lots",
-    "paste_lot": "share of lots",
 }
 
 # Parameters tested by counting which categorical level is over-represented
 # (Fisher exact), rather than by comparing a numeric mean (Welch t-test).
 # Single source of truth: agent/tools/plant_data.NUMERIC_PARAMS excludes this
 # set, and agent/tools/stats_test.test_hypothesis routes on it.
-CATEGORICAL_PARAMS = {"operator_id", "stencil_id", "paste_lot"}
+CATEGORICAL_PARAMS = {"operator_id"}
 
 # Human-readable names for effect strings shown in the live trace and the 8D.
 # A parameter not listed here falls back to its column name with underscores

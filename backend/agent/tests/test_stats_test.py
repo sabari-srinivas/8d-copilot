@@ -79,14 +79,22 @@ def test_no_parameter_and_no_event_raises():
         test_hypothesis("H8", GOLDEN_LOT)
 
 
-def test_stencil_id_is_a_testable_categorical_parameter():
-    """agent/prompts/investigator.md advertises stencil_id and paste_lot as
-    parameters the model may propose; the tool must handle them, not reject them
-    at the `not a testable parameter` gate."""
-    r = test_hypothesis("H9", GOLDEN_LOT, parameter="stencil_id", direction="higher")
-    assert r.verdict in ("supported", "rejected", "inconclusive")
-    assert r.test == "Fisher exact"
-    assert r.n_defect == len(DRIFT_LOT_IDS)
+def test_stencil_identity_is_not_testable_only_print_count_is():
+    """stencil_id is deliberately excluded from PARAM_UNITS/CATEGORICAL_PARAMS
+    (see data/constants.py): ST-07B (installed by WO-386, 2026-10-07) is perfectly
+    collinear with the WO-388 window (2026-10-08) -- every drift lot carries both,
+    so a bare categorical test on stencil_id cannot distinguish "the new stencil
+    caused the defects" from "the new stencil happened to be installed the day
+    before the oven was serviced." classify() has no notion of confounding and
+    would return a confident `supported` for that nuisance variable if asked.
+    Stencil wear is instead tested through the numeric stencil_print_count, which
+    correctly REJECTS on direction (a new stencil means FEWER prints, not more) --
+    the clearest demonstration of the direction-aware rule."""
+    with pytest.raises(ValueError, match="not a testable parameter"):
+        test_hypothesis("H9", GOLDEN_LOT, parameter="stencil_id", direction="higher")
+
+    r = test_hypothesis("H9b", GOLDEN_LOT, parameter="stencil_print_count", direction="higher")
+    assert r.verdict == "rejected"
 
 
 def test_categorical_comparison_is_scoped_to_good_lots_not_the_whole_plant():
