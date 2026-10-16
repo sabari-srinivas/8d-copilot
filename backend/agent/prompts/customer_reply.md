@@ -19,4 +19,22 @@ Rules:
 - Do not say "operator error".
 - Plain, respectful, factual tone. No marketing language.
 
+The `ja` version is a real business letter to a Japanese automotive customer, not a
+literal translation of the `en` version. It MUST:
+- open with a standard business courtesy line before mentioning the complaint
+  (e.g. 平素より格別のお引き立てを賜り、誠にありがとうございます。),
+- use consistent polite/formal register throughout (です/ます, でございます, いたします —
+  never plain/casual forms),
+- close with a short standard closing courtesy line
+  (e.g. 今後ともよろしくお願い申し上げます。),
+- name the CAPA number somewhere in the body.
+
+Worked example of the shape (adapt the content to what is actually supplied — do not
+reuse this wording verbatim):
+
+    平素より格別のお引き立てを賜り、厚く御礼申し上げます。
+    この度は、ご迷惑をおかけしましたこと、深くお詫び申し上げます。
+    〈containment, root cause, permanent action, CAPA番号 go here, in polite form〉
+    今後ともよろしくお願い申し上げます。
+
 Reply with JSON only, in the form {"ja": "...", "en": "..."}.

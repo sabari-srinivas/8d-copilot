@@ -131,6 +131,7 @@ class MemoryEntry(BaseModel):
     line: str = ""
     capa_id: str = ""
     lot_id: str = ""
+    investigation_id: str = ""
     created: str = ""
 
 

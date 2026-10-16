@@ -18,6 +18,7 @@ def save_quality_memory(*, investigation_id: str, defect_type: str, root_cause: 
     entry = MemoryEntry(
         id=next_id("memory"), defect_type=defect_type, root_cause=root_cause,
         parameter=parameter, line=line, capa_id=capa_id, lot_id=lot_id,
+        investigation_id=investigation_id,
         created=datetime.now(timezone.utc).isoformat(timespec="seconds"))
     vector = embed([_text(defect_type, root_cause, parameter, line)])[0]
     get_state().save_memory(entry, vector)
