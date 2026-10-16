@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #16211c;        /* body text */
+  --paper: #fbfcfb;      /* page background */
+  --card: #ffffff;
+  --line: #e2e8e4;
+  --green: #1b5e3f;      /* deep green accent, supported */
+  --green-ink: #0f3a27;  /* darker green for text-on-light use */
+  --grey: #6b7670;       /* rejected */
+  --amber: #b7791f;      /* warnings, inconclusive — warnings only, per PRD 13 */
+  --red: #a6281f;
+  --focus: #2563eb;      /* focus ring, same in light/dark for consistent contrast */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8efea;
+    --paper: #0f1512;
+    --card: #161d19;
+    --line: #27312c;
+    --green: #3fa476;
+    --green-ink: #8fd6ae;
+    --grey: #8b968f;
+    --amber: #d9a441;
+    --red: #e0675c;
+    --focus: #60a5fa;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.mono {
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visible, consistent focus ring everywhere — never rely on browser default alone. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* Minimum touch target helper: 44px per WCAG 2.5.5 / Apple HIG. */
+.tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
