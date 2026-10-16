@@ -10,7 +10,8 @@ import pandas as pd
 from scipy import stats
 
 from data.constants import (DEFECT_RATE_THRESHOLD, DRIFT_LOT_IDS, GOLDEN_BRIDGES,
-                            GOLDEN_LOT, MIN_EFFECT, PARAM_UNITS, WO388_DATE)
+                            GOLDEN_LOT, MIN_EFFECT, PARAM_UNITS, REFLOW_PEAK_LIMIT_C,
+                            WO388_DATE)
 from agent.tools.stats_verdict import classify
 
 OUT = Path(__file__).parent / "out"
@@ -63,8 +64,8 @@ checks = {
     "no Line 2 lot after WO-388 outside the drift window":
         sorted(df[(df.line == "L2") & (pd.to_datetime(df.date) > pd.Timestamp(WO388_DATE))].lot_id)
         == sorted(DRIFT_LOT_IDS),
-    "drift lots exceed the 250 C profile limit on average":
-        float(df[df.lot_id.isin(DRIFT_LOT_IDS)].reflow_peak_temp_c.mean()) > 250.0,
+    f"drift lots exceed the {REFLOW_PEAK_LIMIT_C:.0f} C profile limit on average":
+        float(df[df.lot_id.isin(DRIFT_LOT_IDS)].reflow_peak_temp_c.mean()) > REFLOW_PEAK_LIMIT_C,
 }
 print()
 for name, ok in checks.items():

@@ -24,8 +24,9 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
-from data.constants import (DRIFT_LOT_IDS, OP17_L1_SHARE, OP17_START, PRODUCT, SEED,
-                            START_DATE, WO386_DATE, WO388_DATE)
+from data.constants import (DRIFT_LOT_IDS, END_DATE, GOLDEN_BRIDGES, GOLDEN_LOT,
+                            LOT_NUM_RANGE, OP17_L1_SHARE, OP17_START, PLANT, PRODUCT,
+                            SEED, START_DATE, WO386_DATE, WO388_DATE, WO388_ID)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--seed", type=int, default=SEED)
@@ -43,8 +44,8 @@ OP17_START = pd.Timestamp(OP17_START)
 
 # ---------- lots ----------
 rows = []
-lot_ids = list(range(2551, 2615))              # 64 lots
-dates = pd.date_range(START, "2026-10-13", periods=len(lot_ids)).normalize()
+lot_ids = list(range(*LOT_NUM_RANGE))          # 64 lots
+dates = pd.date_range(START, pd.Timestamp(END_DATE), periods=len(lot_ids)).normalize()
 for i, (lot, d) in enumerate(zip(lot_ids, dates)):
     lot_id = f"L{lot}"
     after_wo388 = d > pd.Timestamp(WO388_DATE)
@@ -101,8 +102,8 @@ process = pd.DataFrame(proc)
 
 # ---------- defects (AOI + customer returns) ----------
 def bridges(r):
-    if r.lot_id == "L2611":
-        return 14                              # matches the customer complaint
+    if r.lot_id == GOLDEN_LOT:
+        return GOLDEN_BRIDGES                  # matches the customer complaint
     drift = r.line == "L2" and pd.Timestamp(r.date) > WO388_DATE
     return int(rng.poisson(r.qty * (0.026 if drift else 0.004)))
 lots["defects_solder_bridge"] = [bridges(r) for r in lots.itertuples()]
@@ -119,7 +120,7 @@ maint = pd.DataFrame([
     ("WO-381", "L1", "2026-09-29", "Nitrogen generator", "Filter change", "closed", "n/a"),
     ("WO-383", "L2", "2026-10-02", "Reflow oven", "Quarterly PM: conveyor chain lubrication, fan check", "closed", "profile_verified"),
     ("WO-386", "L2", "2026-10-07", "Stencil printer", "New stencil ST-07B installed for ECU-PCB-7 (replaces ST-05A)", "closed", "first_article_ok"),
-    ("WO-388", "L2", "2026-10-08", "Reflow oven zone 7", "Zone 7 heater element replaced, profile re-tuned by vendor", "closed", "profile_verification_pending"),
+    (WO388_ID, "L2", "2026-10-08", "Reflow oven zone 7", "Zone 7 heater element replaced, profile re-tuned by vendor", "closed", "profile_verification_pending"),
     ("WO-390", "L1", "2026-10-10", "Pick-and-place feeder bank", "Feeder 14 jam cleared", "closed", "n/a"),
     ("WO-392", "L2", "2026-10-12", "Conveyor", "Board stop sensor cleaned", "closed", "n/a"),
 ], columns=["wo_id", "line", "date", "asset", "description", "status", "post_check"])
@@ -145,7 +146,7 @@ complaints.to_csv(OUT / "complaints.csv", index=False)
 wb = Workbook()
 ws = wb.active
 ws.title = "Line2 Oct wk41"
-ws["A1"] = "SREE ELECTRONICS (fictional) - SMT LINE 2 LOT TRAVELER - ECU-PCB-7"
+ws["A1"] = f"{PLANT.upper()} - SMT LINE 2 LOT TRAVELER - {PRODUCT}"
 ws["A1"].font = Font(bold=True)
 ws["A2"] = "Synthetic demo file. Filled by shift leads, not validated."
 ws.append([])
