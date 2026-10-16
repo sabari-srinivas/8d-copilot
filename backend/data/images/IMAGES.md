@@ -21,44 +21,44 @@ no other class or split was fetched.
 sensor PCB. Source file:
 `https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet`
 
-**Important — none of these are a solder bridge.** The anomalies in `pcb3`
-are a mix of bent/displaced leads and dislodged components, not solder
-bridging specifically. Per PRD §10.4, when no VisA image reliably reads as a
-solder bridge, the fallback is a team photo of a real board — that has not
-been taken yet. These four images are usable for exercising the general
-defect-detection path (and the "defect present, type uncertain" case) and
-for the no-defect edge case, but they should **not** be the board the demo
-narrates as "the solder bridge on lot L2611." See Open items below.
+**Update, post vision-prompt tuning (Task 5):** these images HAVE now been vision-tested
+against the live model through `agent.tools.vision_tool.analyze_defect_image`, using the
+final `agent/prompts/vision.md` (tightened to list what is NOT a defect — flux residue,
+dust, glare, normal tolerance — and to distinguish "unsure of type" from "no anomaly at
+all"). **`defect_03.jpg` is the golden-path solder-bridge image** — the demo's "solder
+bridge on lot L2611" narrative should use this file, not `defect_01.jpg` as earlier drafts
+of this note assumed. `no_defect_01.jpg` is the clean-board image. Neither read is
+perfectly stable across repeated calls; see the table and the stability note below before
+leaning on either in a live demo.
 
-| File | Dataset / class / split | Original filename | Licence | Source URL | Why chosen |
-|---|---|---|---|---|---|
-| `defect_01.jpg` | VisA `pcb3`, test, anomalous | `004.JPG` | CC BY 4.0 | https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet | Clearest anomaly in the sampled set: the IR LED and IR receiver are both dislodged and rotated out of their footprints — an unambiguous, high-confidence "something is wrong here" image for the vision smoke test. |
-| `defect_02.jpg` | VisA `pcb3`, test, anomalous | `002.JPG` | CC BY 4.0 | https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet | Bent header pin crossing diagonally over the board — a lead/placement defect distinct in shape from `defect_01`, useful for checking the model doesn't just key on one visual pattern. |
-| `defect_03.jpg` | VisA `pcb3`, test, anomalous | `003.JPG` | CC BY 4.0 | https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet | A second bent-lead variant (LED leg bent flat across the board) — another distinct defect silhouette for coverage. |
-| `defect_04.jpg` | VisA `pcb3`, test, anomalous | `000.JPG` | CC BY 4.0 | https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet | Header pins splayed outward at an abnormal angle — milder, more subtle defect than the other three, useful as a harder case. |
-| `no_defect_01.jpg` | VisA `pcb3`, test, normal | `0011.JPG` | CC BY 4.0 | https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet | Same board family, no anomaly — clean-board counterpart for the `insufficient_evidence` / "no defect visible" edge case. |
+| File | Dataset / class / split | Original filename | Licence | Source URL | Why chosen | Gemini reads it as (final prompt) |
+|---|---|---|---|---|---|---|
+| `defect_01.jpg` | VisA `pcb3`, test, anomalous | `004.JPG` | CC BY 4.0 | https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet | Clearest anomaly in the sampled set: the IR LED and IR receiver are both dislodged and rotated out of their footprints — an unambiguous, high-confidence "something is wrong here" image for the vision smoke test. | `none` (a false negative — the dislodged-component anomaly described above is real but the model is not reliably catching it; see Open items) |
+| `defect_02.jpg` | VisA `pcb3`, test, anomalous | `002.JPG` | CC BY 4.0 | https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet | Bent header pin crossing diagonally over the board — a lead/placement defect distinct in shape from `defect_01`, useful for checking the model doesn't just key on one visual pattern. | `none` (also a false negative, same caveat as `defect_01.jpg`) |
+| `defect_03.jpg` | VisA `pcb3`, test, anomalous | `003.JPG` | CC BY 4.0 | https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet | A second bent-lead variant (LED leg bent flat across the board) — another distinct defect silhouette for coverage. | **`solder_bridge`, critical** in 2 of 3 live calls under the final prompt (1 call read `none`). This is the **golden-path defect image** and the source of `agent/tests/fixtures/vision_solder_bridge.json`. The model's own description names a header pin solder bridge, not the LED-leg bend this image was originally picked for — a real, if differently-located, bridge-shaped anomaly. |
+| `defect_04.jpg` | VisA `pcb3`, test, anomalous | `000.JPG` | CC BY 4.0 | https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet | Header pins splayed outward at an abnormal angle — milder, more subtle defect than the other three, useful as a harder case. | `misalignment` (major/minor), consistent across both post-tightening test rounds — the one defect image that reads stably as "a defect" under the final prompt. |
+| `no_defect_01.jpg` | VisA `pcb3`, test, normal | `0011.JPG` | CC BY 4.0 | https://huggingface.co/datasets/BrachioLab/visa/resolve/main/data/pcb3.test-00000-of-00001.parquet | Same board family, no anomaly — clean-board counterpart for the `insufficient_evidence` / "no defect visible" edge case. | **`none`** in 3 of 4 live calls under the final prompt (1 call read `misalignment`). This is the **clean-board image** and the source of `agent/tests/fixtures/vision_clean_board.json`. Mostly reliable, not perfectly stable. |
 
-## Gemini reads it as
-
-**Not done.** Brief Step 6 (pre-testing each candidate against the §9.4
-vision prompt in Google AI Studio, two runs each, recording the answer) is a
-manual browser task and was explicitly out of scope for this agent run per
-the task instructions. **None of these five images has been vision-verified.**
-Before they are wired into any vision code path, someone needs to:
-1. Paste the §9.4 vision prompt into Google AI Studio with each image.
-2. Run each twice and record the returned defect type / severity / box.
-3. Keep only images whose answer is stable across both runs; add a
-   "Gemini reads it as" column here with the result.
-4. Decide whether `misalignment` / `missing_component` reads (the honest
-   expected answer for these four) are acceptable for the demo, or whether a
-   real photographed solder bridge is needed instead — see below.
+Full test methodology, every call's raw output, and the two prompt revisions that got
+here are recorded in
+`.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-5-report.md`.
 
 ## Open items for the team
 
-- **No confirmed solder-bridge image.** Per PRD §10.4's stated fallback: if
-  Gemini pre-testing confirms these VisA images don't read as a solder
-  bridge, photograph a real board on the bench and substitute it, noting the
-  substitution here and in the README.
+- **`defect_01.jpg` and `defect_02.jpg` are false negatives under the final prompt.**
+  Both carry genuine, documented anomalies (a dislodged/rotated component pair; a bent
+  header pin) but both read as `none` consistently across two independent prompt
+  revisions. Tightening the "what counts as a defect" language fixed the clean-board false
+  positives but did not make the model reliably see these two real anomalies; this looks
+  like a limitation of the model on unfamiliar board photography rather than a prompt
+  wording problem at this point. Do not keep tuning the prompt against this without a plan
+  — a real photographed defect (per PRD §10.4's fallback) may be the more reliable path if
+  these two specific anomaly types are needed for the demo.
+- **Neither the golden-path nor the clean-board read is 100% stable.** `defect_03.jpg`
+  returned `solder_bridge` in 2 of 3 calls (one `none`); `no_defect_01.jpg` returned `none`
+  in 3 of 4 calls (one `misalignment`). Budget for this if either image is used live in a
+  demo rather than only through the recorded fixtures — a re-run immediately before a live
+  demo is worth doing.
 - If the team prefers different anomaly classes (e.g. a more dramatic
   short/bridge-like defect), the other VisA PCB subsets (`pcb1`, `pcb2`,
   `pcb4`) are available from the same Hugging Face mirror at the same

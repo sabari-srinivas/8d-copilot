@@ -8,5 +8,5 @@
     0.0
   ],
   "confidence": 1.0,
-  "visual_evidence": "The circuit board appears to be assembled correctly with no visible manufacturing defects."
+  "visual_evidence": "The circuit board appears to be free of manufacturing defects such as solder bridges, missing components, misalignment, scratches, or contamination."
 }

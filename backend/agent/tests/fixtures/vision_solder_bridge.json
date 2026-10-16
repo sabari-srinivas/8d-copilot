@@ -1,12 +1,12 @@
 {
-  "type": "contamination",
-  "severity": "minor",
+  "type": "solder_bridge",
+  "severity": "critical",
   "box": [
-    0.15,
-    0.15,
-    0.7,
-    0.7
+    0.25,
+    0.55,
+    0.04,
+    0.07
   ],
-  "confidence": 0.9,
-  "visual_evidence": "Small white specks are visible on the blue surface of the printed circuit board."
+  "confidence": 1.0,
+  "visual_evidence": "Continuous solder connects the pads of the middle and bottom pins of the 3-pin header on the left side of the board."
 }

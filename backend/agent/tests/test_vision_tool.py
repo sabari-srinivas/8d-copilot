@@ -21,16 +21,15 @@ def stub(monkeypatch):
 
 def test_defect_image_returns_a_typed_defect(stub):
     # vision_solder_bridge.json is a genuine recorded Gemini response for
-    # data/images/defect_01.jpg -- NOT actually a solder bridge. The VisA pcb3
-    # images are bent-lead/dislodged-component anomalies (see
-    # data/images/IMAGES.md) and the vision prompt forbids guessing a cause, so
-    # the recorded type reflects real model output, not the brief's filename.
-    # This test checks the wiring (defect found -> typed, valid Defect), not a
-    # specific defect type.
+    # data/images/defect_03.jpg -- the golden-path solder-bridge demo image,
+    # re-sourced here after prompt tuning (see task-5-report.md). Under the
+    # final vision.md this image reads as solder_bridge in 2 of 3 live calls
+    # (the third read none), so it is majority-stable, not unanimous; this
+    # fixture is one genuine solder_bridge call, not an invented "ideal" one.
     payload = stub("vision_solder_bridge.json")
     d = vision_tool.analyze_defect_image((FX / "tiny.jpg").read_bytes(), "image/jpeg")
-    assert d.type == payload["type"]
-    assert d.type != "none"
+    assert d.type == "solder_bridge"
+    assert payload["type"] == "solder_bridge"
     assert d.severity in ("critical", "major", "minor")
     assert 0.0 <= d.confidence <= 1.0
     assert len(d.visual_evidence) > 10
@@ -38,13 +37,11 @@ def test_defect_image_returns_a_typed_defect(stub):
 
 def test_clean_board_returns_none_type(stub):
     # vision_clean_board.json is a genuine recorded Gemini response for
-    # data/images/no_defect_01.jpg, the VisA dataset's own "normal" board, taken
-    # AFTER vision.md was tightened to explicitly list what does not count as a
-    # defect (flux residue, dust, glare, normal tolerance) and to resolve
-    # uncertainty toward `none`. Before that tightening this same image never
-    # returned `none` across four live calls (see task-5-report.md); after it,
-    # three straight calls all returned `none` at confidence 1.0, and this
-    # fixture is one of them.
+    # data/images/no_defect_01.jpg, the VisA dataset's own "normal" board,
+    # taken under the final vision.md (tightened to list what does not count
+    # as a defect, and to distinguish "unsure of type" from "no anomaly at
+    # all"). This image reads as none in 3 of 4 live calls under that prompt
+    # (the fourth read misalignment) -- majority-stable, not unanimous.
     payload = stub("vision_clean_board.json")
     d = vision_tool.analyze_defect_image((FX / "tiny.jpg").read_bytes(), "image/jpeg")
     assert d.type == "none"

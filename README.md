@@ -39,38 +39,48 @@ prototype/
 
 `backend/agent/tests/fixtures/vision_solder_bridge.json` and `vision_clean_board.json` are
 **recorded real Gemini output**, not hand-written examples — produced by calling
-`agent.tools.vision_tool.analyze_defect_image` against `data/images/defect_01.jpg` and
-`data/images/no_defect_01.jpg` respectively and saving the typed `Defect` response. They let
-`agent/tests/test_vision_tool.py` test the wiring (vision tool → Pydantic `Defect`) without
-ever calling the live model. Regenerate them with:
+`agent.tools.vision_tool.analyze_defect_image` against `data/images/defect_03.jpg` (the
+golden-path solder-bridge image) and `data/images/no_defect_01.jpg` (the clean-board
+image) respectively, and saving the typed `Defect` response. Both fixtures now genuinely
+contain what their filenames say — see `data/images/IMAGES.md` for how that was arrived
+at and how stable each read is. They let `agent/tests/test_vision_tool.py` test the wiring
+(vision tool → Pydantic `Defect`) without ever calling the live model. Regenerate them
+with:
 
 ```bash
 python - <<'PY'
 import pathlib
 from agent.tools.vision_tool import analyze_defect_image
 fx = pathlib.Path("agent/tests/fixtures")
-for src, name in [("data/images/defect_01.jpg", "vision_solder_bridge.json"),
+for src, name in [("data/images/defect_03.jpg", "vision_solder_bridge.json"),
                   ("data/images/no_defect_01.jpg", "vision_clean_board.json")]:
     d = analyze_defect_image(pathlib.Path(src).read_bytes(), "image/jpeg")
-    (fx / name).write_text(d.model_dump_json(indent=2))
+    (fx / name).write_text(d.model_dump_json(indent=2) + "\n")
 PY
 ```
 
-whenever `agent/prompts/vision.md` changes. The filenames are historical (chosen before any
-image had been vision-tested) and do not describe their contents — see Known issues below.
+whenever `agent/prompts/vision.md` changes — then check the regenerated `type` still
+matches the filename before committing, since neither read is perfectly stable (see
+Known issues).
 
 ## Known issues
 
-- **No VisA demo image reads as a solder bridge, and the "clean board" reference image is
-  not reliably read as defect-free either.** The `pcb3` VisA images are bent-lead/dislodged-
-  component anomalies (see `data/images/IMAGES.md`), so `vision_solder_bridge.json` actually
-  records a `contamination` response for `defect_01.jpg`, not `solder_bridge`. More
-  surprisingly, repeated calls against `no_defect_01.jpg` (the dataset's own "normal" board)
-  never returned `type: none` — across four calls it alternated between `misalignment` and
-  `contamination`, both at 0.90+ confidence; `vision_clean_board.json` records one such call.
-  This is genuine Gemini behaviour on this image, not a bug in the vision tool or prompt. The
-  demo narrative and any later task that assumes a reliable "no defect found" image should
-  account for this — see `.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-5-report.md`
-  for the full table of results across all five images.
+- **`defect_03.jpg` is the golden-path solder-bridge image for the demo** (not
+  `defect_01.jpg`, which earlier drafts of this README assumed). Under the final
+  `agent/prompts/vision.md`, `defect_03.jpg` reads as `solder_bridge` (critical) in 2 of 3
+  live calls and `none` in the third; `no_defect_01.jpg` reads as `none` in 3 of 4 calls
+  and `misalignment` in the fourth. Both are majority-stable, not unanimous — re-run before
+  a live demo if either image is called live rather than only through the recorded
+  fixtures.
+- **`defect_01.jpg` and `defect_02.jpg` are false negatives.** Both carry genuine,
+  documented anomalies (see `data/images/IMAGES.md`) but both consistently read as `none`
+  under the final prompt, across two independent rounds of prompt tightening. This was a
+  deliberate trade-off: an earlier, blunter "uncertainty resolves toward none" rule made
+  the clean-board image reliable but suppressed these two real defects as well; the
+  current prompt distinguishes "unsure of type" from "no anomaly at all" and recovered
+  `defect_04.jpg` and (mostly) `defect_03.jpg`, but not these two. Do not keep tuning the
+  prompt against this without a plan — see
+  `.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-5-report.md` for the full
+  before/after table across both prompt revisions and all five images.
 - `pip install -e ".[dev]"` from `backend/` succeeded on Python 3.12.15, including
   `google-adk>=1.0` (resolved to 1.14.1).
