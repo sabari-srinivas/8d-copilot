@@ -1,6 +1,8 @@
 """The only place a Gemini client is constructed. Model IDs come from env, never from code."""
 import logging
+import random
 import threading
+import time
 from pathlib import Path
 from typing import TypeVar
 
@@ -12,9 +14,23 @@ log = logging.getLogger(__name__)
 PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 T = TypeVar("T", bound=BaseModel)
 
+# Transient-error retry, applied to every outbound call (generate_structured,
+# generate_text, embed). Tunable in one place.
+RETRY_ATTEMPTS = 3            # total tries, including the first; 2 retries after a failure
+RETRY_BASE_DELAY_S = 1.0      # backoff: 1s, 2s, 4s, ... (RETRY_BASE_DELAY_S * 2**(attempt-1))
+RETRY_JITTER_FRAC = 0.25      # +/-25% jitter on each delay
+# Google surfaces 429/503/500 as retryable in its own client-library guidance; 400/401/403/404
+# are bugs or config errors (bad request, bad auth, wrong resource) -- retrying those wastes
+# the budget and hides the real problem, so they are raised immediately instead.
+RETRYABLE_STATUS_CODES = frozenset({429, 500, 503})
+
 
 class StructuredOutputError(RuntimeError):
     """The model failed schema validation twice (PRD 9.5)."""
+
+
+class TransientAPIError(RuntimeError):
+    """A transient API error (429/500/503) survived every retry attempt."""
 
 
 # Task 10's threading fix runs intake and vision concurrently via asyncio.to_thread, so
@@ -53,6 +69,43 @@ def _client():
     return _client_instance
 
 
+def _retry_delay(attempt: int) -> float:
+    """attempt is 1-based (1 -> ~1s, 2 -> ~2s, 3 -> ~4s), before +/-RETRY_JITTER_FRAC jitter."""
+    base = RETRY_BASE_DELAY_S * (2 ** (attempt - 1))
+    jitter = base * RETRY_JITTER_FRAC
+    return base + random.uniform(-jitter, jitter)
+
+
+def _call_with_retry(fn, /, *args, **kwargs):
+    """Call `fn`, retrying up to RETRY_ATTEMPTS times with exponential backoff + jitter if it
+    raises a transient google.genai API error (429/500/503). Any other ClientError/ServerError
+    (400/401/403/404 and friends) is raised immediately on the first attempt -- see the module
+    docstring constants for why. Imports google.genai.errors lazily so this module stays the
+    only place that pulls in the (heavier) genai SDK at call time, not at import time.
+    """
+    from google.genai import errors as genai_errors
+    last: Exception | None = None
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        try:
+            return fn(*args, **kwargs)
+        except (genai_errors.ClientError, genai_errors.ServerError) as exc:
+            code = getattr(exc, "code", None)
+            if code not in RETRYABLE_STATUS_CODES:
+                raise
+            last = exc
+            if attempt == RETRY_ATTEMPTS:
+                break
+            delay = _retry_delay(attempt)
+            # Log the error, never the payload (CLAUDE.md rule 6).
+            log.warning(
+                "transient API error, status %s (attempt %d/%d), retrying in %.2fs: %s",
+                code, attempt, RETRY_ATTEMPTS, delay, exc.__class__.__name__)
+            time.sleep(delay)
+    raise TransientAPIError(
+        f"giving up after {RETRY_ATTEMPTS} attempts: status {getattr(last, 'code', '?')}"
+    ) from last
+
+
 def _raw_generate(*, prompt: str, parts: list | None, schema: dict | None,
                   temperature: float) -> str:
     from google.genai import types
@@ -62,14 +115,22 @@ def _raw_generate(*, prompt: str, parts: list | None, schema: dict | None,
         config.response_mime_type = "application/json"
         config.response_schema = schema
     contents = [*(parts or []), prompt]
-    resp = _client().models.generate_content(
-        model=s.require_model(), contents=contents, config=config)
+    resp = _call_with_retry(_client().models.generate_content,
+                            model=s.require_model(), contents=contents, config=config)
     return resp.text
 
 
 def generate_structured(prompt: str, schema: type[T], *, parts: list | None = None,
                         temperature: float = 0.2) -> T:
-    """One retry on validation failure, then raise (PRD 9.5)."""
+    """One retry on validation failure, then raise (PRD 9.5).
+
+    Each of these (at most 2) raw calls goes through _raw_generate -> _call_with_retry,
+    which independently retries transient API errors up to RETRY_ATTEMPTS times. The two
+    retry loops compose but stay bounded: worst case is 2 * RETRY_ATTEMPTS raw network
+    calls (currently 2 * 3 = 6), not an open-ended product. A transient error that survives
+    its own retry budget raises TransientAPIError, which is not a ValidationError, so it
+    propagates straight out of this function rather than consuming a validation attempt.
+    """
     last: Exception | None = None
     attempt_prompt = prompt
     for attempt in (1, 2):
@@ -96,5 +157,6 @@ def generate_text(prompt: str, *, temperature: float = 0.3) -> str:
 
 def embed(texts: list[str]) -> list[list[float]]:
     s = get_settings()
-    resp = _client().models.embed_content(model=s.require_embed_model(), contents=texts)
+    resp = _call_with_retry(_client().models.embed_content,
+                            model=s.require_embed_model(), contents=texts)
     return [e.values for e in resp.embeddings]

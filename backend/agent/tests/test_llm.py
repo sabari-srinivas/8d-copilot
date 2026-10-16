@@ -1,4 +1,5 @@
 import pytest
+from google.genai import errors as genai_errors
 from pydantic import BaseModel
 
 from agent.config import Settings
@@ -129,3 +130,138 @@ def test_embed_is_wired_to_require_embed_model_and_returns_vectors(monkeypatch):
     assert fake_client.models.embed_content_calls[0]["model"] == "test-embed-model"
     assert fake_client.models.embed_content_calls[0]["contents"] == [
         "first passage", "second passage"]
+
+
+class _FlakyModels(_FakeModels):
+    """Like _FakeModels, but generate_content/embed_content pop results off a queue,
+    raising queued exceptions or returning queued values, in order. Used to simulate a
+    transient API error followed by a recovery (or a persistent run of failures)."""
+
+    def __init__(self, generate_queue=None, embed_queue=None):
+        super().__init__()
+        self._generate_queue = list(generate_queue or [])
+        self._embed_queue = list(embed_queue or [])
+
+    def generate_content(self, *, model, contents, config):
+        self.generate_content_calls.append({"model": model, "contents": contents})
+        item = self._generate_queue.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return _FakeTextResponse(item)
+
+    def embed_content(self, *, model, contents):
+        self.embed_content_calls.append({"model": model, "contents": contents})
+        item = self._embed_queue.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+
+def _rate_limited():
+    return genai_errors.ClientError(
+        429, {"error": {"message": "quota exceeded", "status": "RESOURCE_EXHAUSTED"}})
+
+
+def _unavailable():
+    return genai_errors.ServerError(
+        503, {"error": {"message": "unavailable", "status": "UNAVAILABLE"}})
+
+
+def _bad_request():
+    return genai_errors.ClientError(
+        400, {"error": {"message": "bad request", "status": "INVALID_ARGUMENT"}})
+
+
+def test_transient_429_then_success_retries_and_returns(monkeypatch):
+    fake_client = _FakeClient()
+    fake_client.models = _FlakyModels(generate_queue=[_rate_limited(), "ok text"])
+    monkeypatch.setattr(llm, "_client", lambda: fake_client)
+    monkeypatch.setattr(llm, "get_settings", lambda: Settings(gemini_model="test-model"))
+    sleeps = []
+    monkeypatch.setattr(llm.time, "sleep", lambda s: sleeps.append(s))
+
+    result = llm.generate_text("hi")
+
+    assert result == "ok text"
+    assert len(fake_client.models.generate_content_calls) == 2
+    assert len(sleeps) == 1
+    assert 0.75 <= sleeps[0] <= 1.25          # base 1s +/- 25% jitter
+
+
+def test_persistent_429_raises_after_configured_attempts(monkeypatch):
+    fake_client = _FakeClient()
+    fake_client.models = _FlakyModels(
+        generate_queue=[_rate_limited() for _ in range(llm.RETRY_ATTEMPTS)])
+    monkeypatch.setattr(llm, "_client", lambda: fake_client)
+    monkeypatch.setattr(llm, "get_settings", lambda: Settings(gemini_model="test-model"))
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+
+    with pytest.raises(llm.TransientAPIError, match="429"):
+        llm.generate_text("hi")
+
+    assert len(fake_client.models.generate_content_calls) == llm.RETRY_ATTEMPTS
+
+
+def test_400_raises_immediately_with_exactly_one_call(monkeypatch):
+    fake_client = _FakeClient()
+    fake_client.models = _FlakyModels(generate_queue=[_bad_request()])
+    monkeypatch.setattr(llm, "_client", lambda: fake_client)
+    monkeypatch.setattr(llm, "get_settings", lambda: Settings(gemini_model="test-model"))
+    sleeps = []
+    monkeypatch.setattr(llm.time, "sleep", lambda s: sleeps.append(s))
+
+    with pytest.raises(genai_errors.ClientError):
+        llm.generate_text("hi")
+
+    assert len(fake_client.models.generate_content_calls) == 1
+    assert sleeps == []
+
+
+def test_backoff_delays_double_with_jitter_each_retry(monkeypatch):
+    fake_client = _FakeClient()
+    fake_client.models = _FlakyModels(generate_queue=[_unavailable(), _unavailable(), _unavailable()])
+    monkeypatch.setattr(llm, "_client", lambda: fake_client)
+    monkeypatch.setattr(llm, "get_settings", lambda: Settings(gemini_model="test-model"))
+    sleeps = []
+    monkeypatch.setattr(llm.time, "sleep", lambda s: sleeps.append(s))
+
+    with pytest.raises(llm.TransientAPIError):
+        llm.generate_text("hi")
+
+    assert len(sleeps) == 2                  # 3 attempts -> 2 waits in between
+    assert 0.75 <= sleeps[0] <= 1.25          # ~1s +/- 25%
+    assert 1.5 <= sleeps[1] <= 2.5            # ~2s +/- 25%
+
+
+def test_embed_retries_on_transient_server_error(monkeypatch):
+    fake_client = _FakeClient()
+    fake_client.models = _FlakyModels(
+        embed_queue=[_unavailable(), _FakeEmbedResponse([[0.1, 0.2]])])
+    monkeypatch.setattr(llm, "_client", lambda: fake_client)
+    monkeypatch.setattr(llm, "get_settings", lambda: Settings(embed_model="test-embed-model"))
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+
+    result = llm.embed(["x"])
+
+    assert result == [[0.1, 0.2]]
+    assert len(fake_client.models.embed_content_calls) == 2
+
+
+def test_transient_and_validation_retries_compose_but_stay_bounded(monkeypatch):
+    """Worst case: each of the 2 validation attempts (PRD 9.5) may itself retry transient
+    errors up to RETRY_ATTEMPTS times before giving up, bounding total raw network calls
+    at 2 * RETRY_ATTEMPTS (see the comment in llm.generate_structured)."""
+    fake_client = _FakeClient()
+    fake_client.models = _FlakyModels(generate_queue=[
+        _rate_limited(), '{"answer": "x"}',                     # attempt 1: retry, then invalid
+        _rate_limited(), '{"answer": "x", "score": 0.5}',        # attempt 2: retry, then valid
+    ])
+    monkeypatch.setattr(llm, "_client", lambda: fake_client)
+    monkeypatch.setattr(llm, "get_settings", lambda: Settings(gemini_model="test-model"))
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+
+    result = llm.generate_structured("hi", Tiny)
+
+    assert result.score == 0.5
+    assert len(fake_client.models.generate_content_calls) == 4
+    assert 4 <= 2 * llm.RETRY_ATTEMPTS
