@@ -13,9 +13,8 @@ from agent.tools.charts import render_reflow_chart
 from agent.tools.plant_data import (NUMERIC_PARAMS, get_comparison_groups,
                                     get_maintenance_events, joined)
 from agent.tools.stats_verdict import classify
-from data.constants import MIN_EFFECT, PARAM_UNITS
+from data.constants import CATEGORICAL_PARAMS, MIN_EFFECT, PARAM_LABELS, PARAM_UNITS
 
-CATEGORICAL_PARAMS = {"operator_id", "stencil_id", "paste_lot"}
 DEFAULT_EVENT_PARAM = "reflow_peak_temp_c"
 
 
@@ -34,23 +33,28 @@ def _numeric(df_a: pd.DataFrame, df_b: pd.DataFrame, param: str, direction: Dire
         hypothesis_id=hypothesis_id,
         verdict=classify(float(p), effect, direction, MIN_EFFECT[param]),
         test="Welch t-test", p_value=round(float(p), 6),
-        effect=f"{_fmt(effect, unit)} mean {param.replace('_', ' ')}",
+        effect=f"{_fmt(effect, unit)} mean {PARAM_LABELS.get(param, param.replace('_', ' '))}",
         effect_value=round(effect, 3), effect_unit=unit,
         n_defect=int(len(a)), n_good=int(len(b)),
         group_labels=labels, chart_url=chart_url)
 
 
-def _categorical(df: pd.DataFrame, defect_ids: list[str], param: str, direction: Direction,
-                 hypothesis_id: str) -> HypothesisResult:
-    is_defect = df.lot_id.isin(defect_ids)
+def _categorical(df: pd.DataFrame, defect_ids: list[str], good_ids: list[str], param: str,
+                 direction: Direction, hypothesis_id: str) -> HypothesisResult:
+    # Scoped to defect lots vs good lots (same product, last 30 days), mirroring the
+    # numeric path. Unscoped would silently compare against lots outside that window
+    # or a different product once either exists — inert today only because this
+    # dataset has one product inside one 30-day window.
+    scope = df[df.lot_id.isin(defect_ids + good_ids)]
+    is_defect = scope.lot_id.isin(defect_ids)
     # The level most over-represented among the defect lots is the one being accused.
-    level = df[is_defect][param].value_counts().idxmax()
-    table = pd.crosstab(df[param] == level, is_defect)
+    level = scope[is_defect][param].value_counts().idxmax()
+    table = pd.crosstab(scope[param] == level, is_defect)
     # Reindex so a missing cell becomes 0 rather than a KeyError.
     table = table.reindex(index=[False, True], columns=[False, True], fill_value=0)
     _, p = stats.fisher_exact(table.values)
-    share_defect = float((df[is_defect][param] == level).mean())
-    share_good = float((df[~is_defect][param] == level).mean())
+    share_defect = float((scope[is_defect][param] == level).mean())
+    share_good = float((scope[~is_defect][param] == level).mean())
     effect = share_defect - share_good
     return HypothesisResult(
         hypothesis_id=hypothesis_id,
@@ -94,7 +98,8 @@ def test_hypothesis(hypothesis_id: str, lot_id: str, parameter: str | None = Non
                         hypothesis_id, chart)
 
     if parameter in CATEGORICAL_PARAMS:
-        return _categorical(df, defect_ids, parameter, direction, hypothesis_id)
+        return _categorical(df, defect_ids, groups["good_lots"], parameter, direction,
+                            hypothesis_id)
 
     defect_df = df[df.lot_id.isin(defect_ids)]
     good_df = df[df.lot_id.isin(groups["good_lots"])]

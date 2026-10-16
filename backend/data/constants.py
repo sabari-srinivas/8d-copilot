@@ -32,6 +32,8 @@ MIN_EFFECT = {
     "stencil_print_count": 5000.0,
     "squeegee_pressure_kg": 0.5,
     "operator_id": 0.15,           # difference in share of lots, 0-1
+    "stencil_id": 0.15,            # difference in share of lots, 0-1
+    "paste_lot": 0.15,             # difference in share of lots, 0-1
 }
 
 PARAM_UNITS = {
@@ -45,6 +47,29 @@ PARAM_UNITS = {
     "stencil_print_count": "prints",
     "squeegee_pressure_kg": "kg",
     "operator_id": "share of lots",
+    "stencil_id": "share of lots",
+    "paste_lot": "share of lots",
+}
+
+# Parameters tested by counting which categorical level is over-represented
+# (Fisher exact), rather than by comparing a numeric mean (Welch t-test).
+# Single source of truth: agent/tools/plant_data.NUMERIC_PARAMS excludes this
+# set, and agent/tools/stats_test.test_hypothesis routes on it.
+CATEGORICAL_PARAMS = {"operator_id", "stencil_id", "paste_lot"}
+
+# Human-readable names for effect strings shown in the live trace and the 8D.
+# A parameter not listed here falls back to its column name with underscores
+# turned to spaces (e.g. "reflow_peak_temp_c" -> "reflow peak temp c").
+PARAM_LABELS = {
+    "reflow_peak_temp_c": "reflow peak temperature",
+    "time_above_liquidus_s": "time above liquidus",
+    "preheat_ramp_c_per_s": "preheat ramp rate",
+    "soak_time_s": "soak time",
+    "conveyor_speed_cm_min": "conveyor speed",
+    "paste_age_h": "paste age",
+    "room_humidity_pct": "room humidity",
+    "stencil_print_count": "stencil print count",
+    "squeegee_pressure_kg": "squeegee pressure",
 }
 
 REFLOW_PEAK_LIMIT_C = 250.0        # profile limit drawn on the evidence chart

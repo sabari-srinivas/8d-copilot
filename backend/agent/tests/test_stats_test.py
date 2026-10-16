@@ -77,3 +77,36 @@ def test_unknown_parameter_raises():
 def test_no_parameter_and_no_event_raises():
     with pytest.raises(ValueError, match="parameter or event"):
         test_hypothesis("H8", GOLDEN_LOT)
+
+
+def test_stencil_id_is_a_testable_categorical_parameter():
+    """agent/prompts/investigator.md advertises stencil_id and paste_lot as
+    parameters the model may propose; the tool must handle them, not reject them
+    at the `not a testable parameter` gate."""
+    r = test_hypothesis("H9", GOLDEN_LOT, parameter="stencil_id", direction="higher")
+    assert r.verdict in ("supported", "rejected", "inconclusive")
+    assert r.test == "Fisher exact"
+    assert r.n_defect == len(DRIFT_LOT_IDS)
+
+
+def test_categorical_comparison_is_scoped_to_good_lots_not_the_whole_plant():
+    """_categorical must restrict its 'good' side to get_comparison_groups'
+    good_lots (same product, last 30 days), mirroring _numeric -- not every
+    non-defect row in joined(). n_good should equal the known good-lot count (58),
+    not the much larger unscoped complement."""
+    r = test_hypothesis("H4", GOLDEN_LOT, parameter="operator_id", direction="higher")
+    from agent.tools.plant_data import get_comparison_groups
+    assert r.n_good == len(get_comparison_groups(GOLDEN_LOT)["good_lots"])
+
+
+def test_unknown_maintenance_event_raises():
+    with pytest.raises(ValueError, match="no maintenance event"):
+        test_hypothesis("H10", GOLDEN_LOT, event_wo_id="WO-9999", direction="higher")
+
+
+def test_event_too_close_to_the_data_boundary_raises():
+    """WO-392 (2026-10-12) is the last Line 2 maintenance event, one day before the
+    dataset's last lot date -- only 1 lot falls after it, so the Welch comparison
+    does not have enough lots on that side to run."""
+    with pytest.raises(ValueError, match="not enough lots"):
+        test_hypothesis("H11", GOLDEN_LOT, event_wo_id="WO-392", direction="higher")

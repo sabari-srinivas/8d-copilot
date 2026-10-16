@@ -7,11 +7,11 @@ from typing import Protocol
 import pandas as pd
 
 from agent.config import get_settings
-from data.constants import (DEFECT_RATE_THRESHOLD, PARAM_UNITS, PRODUCT,
-                            REFLOW_PEAK_LIMIT_C)
+from data.constants import (CATEGORICAL_PARAMS, DEFECT_RATE_THRESHOLD, PARAM_UNITS,
+                            PRODUCT, REFLOW_PEAK_LIMIT_C)
 
 OUT = Path(__file__).resolve().parents[2] / "data" / "out"
-NUMERIC_PARAMS = [p for p in PARAM_UNITS if p != "operator_id"]
+NUMERIC_PARAMS = [p for p in PARAM_UNITS if p not in CATEGORICAL_PARAMS]
 
 
 class PlantStore(Protocol):
