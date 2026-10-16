@@ -1,0 +1,192 @@
+{
+  "id": "inv_mock",
+  "status": "draft_ready",
+  "complaint_id": "C-2026-031",
+  "lot_id": "L2611",
+  "created": "2026-10-16T10:02:00Z",
+  "photo_url": "/api/photos/mock_defect.jpg",
+  "defect": {
+    "type": "solder_bridge",
+    "severity": "major",
+    "box": [0.41, 0.36, 0.17, 0.12],
+    "confidence": 0.86,
+    "visual_evidence": "Continuous bright solder joining two adjacent fine-pitch pads."
+  },
+  "hypotheses": [
+    {
+      "id": "H1",
+      "category": "Machine",
+      "text": "Stencil wear is increasing deposited solder volume, causing bridging between fine-pitch pads.",
+      "parameter": "stencil_print_count",
+      "event_wo_id": null,
+      "direction": "higher"
+    },
+    {
+      "id": "H2",
+      "category": "Machine",
+      "text": "Reflow peak temperature drifted upward after work order WO-388 (profile change), causing excess solder flow and bridging.",
+      "parameter": "reflow_peak_temp_c",
+      "event_wo_id": "WO-388",
+      "direction": "higher"
+    },
+    {
+      "id": "H3",
+      "category": "Environment",
+      "text": "Elevated room humidity is slowing flux activation, leading to solder bridging.",
+      "parameter": "room_humidity_pct",
+      "event_wo_id": null,
+      "direction": "higher"
+    },
+    {
+      "id": "H4",
+      "category": "Man",
+      "text": "A shift change to operator OP-17 increased variability in manual touch-up, causing bridging.",
+      "parameter": "operator_id",
+      "event_wo_id": null,
+      "direction": "higher"
+    }
+  ],
+  "results": [
+    {
+      "hypothesis_id": "H1",
+      "verdict": "rejected",
+      "test": "Welch t-test",
+      "p_value": 0.0001,
+      "effect": "-38,400 prints (new stencil ST-07B)",
+      "effect_value": -38400.0,
+      "effect_unit": "prints",
+      "n_defect": 6,
+      "n_good": 58,
+      "group_labels": ["defect lots", "good lots"],
+      "chart_url": null
+    },
+    {
+      "hypothesis_id": "H2",
+      "verdict": "supported",
+      "test": "Welch t-test",
+      "p_value": 0.0000,
+      "effect": "+8.2 °C mean peak temp",
+      "effect_value": 8.2,
+      "effect_unit": "°C",
+      "n_defect": 6,
+      "n_good": 58,
+      "group_labels": ["defect lots", "good lots"],
+      "chart_url": "/api/charts/mock_reflow.png"
+    },
+    {
+      "hypothesis_id": "H3",
+      "verdict": "rejected",
+      "test": "Welch t-test",
+      "p_value": 0.62,
+      "effect": "+0.4 %RH",
+      "effect_value": 0.4,
+      "effect_unit": "%RH",
+      "n_defect": 6,
+      "n_good": 58,
+      "group_labels": ["defect lots", "good lots"],
+      "chart_url": null
+    },
+    {
+      "hypothesis_id": "H4",
+      "verdict": "inconclusive",
+      "test": "Fisher exact",
+      "p_value": 0.041,
+      "effect": "+0.52 share of OP-17 lots",
+      "effect_value": 0.52,
+      "effect_unit": "share of OP-17 lots",
+      "n_defect": 6,
+      "n_good": 58,
+      "group_labels": ["defect lots", "good lots"],
+      "chart_url": null
+    }
+  ],
+  "citations": [
+    {
+      "label": "PFMEA row 14",
+      "source": "PFMEA",
+      "ref": "row 14",
+      "quote": "Reflow peak temperature out of profile window is a listed cause of solder bridging on fine-pitch pads."
+    },
+    {
+      "label": "Control plan item 6",
+      "source": "Control plan",
+      "ref": "item 6",
+      "quote": "Reflow peak temperature profile verification is required after any reflow profile change work order."
+    }
+  ],
+  "traveler_rows": [],
+  "eight_d": {
+    "D1": {
+      "text": "Team: Priya R. · Quality Engineer, Sree Electronics (fictional) (lead) [complaint C-2026-031], SMT process engineer for Line 2 [PFMEA row 14], and the reflow maintenance technician who executed WO-388 [WO-388].",
+      "citations": []
+    },
+    "D2": {
+      "text": "Hoshino Denso (fictional) reported solder bridging on product ECU-PCB-7, lot L2611, affecting 14 of 500 units shipped [complaint C-2026-031]. Vision inspection of the returned unit confirmed a continuous bright solder bridge joining two adjacent fine-pitch pads, classified major severity at 86% confidence [Chart: defect photo annotation].",
+      "citations": []
+    },
+    "D3": {
+      "text": "Lots L2609, L2610, L2611, L2612, L2613 and L2614 from Line 2 are placed on hold pending disposition [Control plan item 6]. These lots were produced during the window when the reflow profile on Line 2 was out of specification following WO-388 [PFMEA row 14].",
+      "citations": [
+        { "label": "Control plan item 6", "source": "Control plan", "ref": "item 6", "quote": "Reflow peak temperature profile verification is required after any reflow profile change work order." },
+        { "label": "PFMEA row 14", "source": "PFMEA", "ref": "row 14", "quote": "Reflow peak temperature out of profile window is a listed cause of solder bridging on fine-pitch pads." }
+      ]
+    },
+    "D4": {
+      "text": "Root cause: reflow peak temperature on Line 2 drifted upward after profile change work order WO-388, pushing solder past liquidus for longer than specified and causing bridging between adjacent fine-pitch pads [PFMEA row 14]. This cause was verified with a Welch t-test comparing defect lots against good lots, p < 0.01, with a mean effect of +8.2 °C peak temperature in defect lots [Chart: reflow peak temp by lot]. The condition escaped detection because the post-change profile verification required after WO-388 was left in status profile_verification_pending and was never completed before production resumed [WO-388].",
+      "citations": [
+        { "label": "PFMEA row 14", "source": "PFMEA", "ref": "row 14", "quote": "Reflow peak temperature out of profile window is a listed cause of solder bridging on fine-pitch pads." }
+      ]
+    },
+    "D5": {
+      "text": "Permanent corrective action: re-qualify the Line 2 reflow profile to bring peak temperature back within the 250 °C specification limit and complete the profile verification step before resuming production [PFMEA row 14]. Work order WO-412 is raised to execute and sign off this re-qualification [WO-388].",
+      "citations": []
+    },
+    "D6": {
+      "text": "Implementation will be validated by re-running the reflow profile verification required under WO-388 and confirming peak temperature is within specification on three consecutive lots before the hold is released [Control plan item 6]. Effectiveness will be checked by re-testing the H2 comparison (defect lots vs good lots) and confirming no statistically significant temperature difference remains [Chart: reflow peak temp by lot].",
+      "citations": [
+        { "label": "Control plan item 6", "source": "Control plan", "ref": "item 6", "quote": "Reflow peak temperature profile verification is required after any reflow profile change work order." }
+      ]
+    },
+    "D7": {
+      "text": "PFMEA row 14 is updated to flag post-change profile verification as a mandatory, blocking step rather than an advisory one [PFMEA row 14]. Control plan item 6 is updated to require sign-off evidence of profile verification before a line may resume production after any reflow profile change work order [Control plan item 6].",
+      "citations": [
+        { "label": "PFMEA row 14", "source": "PFMEA", "ref": "row 14", "quote": "Reflow peak temperature out of profile window is a listed cause of solder bridging on fine-pitch pads." },
+        { "label": "Control plan item 6", "source": "Control plan", "ref": "item 6", "quote": "Reflow peak temperature profile verification is required after any reflow profile change work order." }
+      ]
+    },
+    "D8": {
+      "text": "The cross-functional team closed this 8D within the customer's 10-working-day requirement and the corrective actions are tracked to closure under CAPA-0142 [complaint C-2026-031]. Team contributions from quality, process engineering and maintenance are acknowledged [WO-388].",
+      "citations": []
+    }
+  },
+  "proposed_actions": [
+    {
+      "id": "A1",
+      "kind": "capa",
+      "summary": "Open CAPA-0142 for reflow peak temperature drift on Line 2 following WO-388.",
+      "payload": { "capa_id": "CAPA-0142", "defect_type": "solder_bridge", "line": "Line 2" }
+    },
+    {
+      "id": "A2",
+      "kind": "hold",
+      "summary": "Hold lots L2609-L2614 pending reflow profile verification.",
+      "payload": { "lot_ids": ["L2609", "L2610", "L2611", "L2612", "L2613", "L2614"] }
+    },
+    {
+      "id": "A3",
+      "kind": "work_order",
+      "summary": "Issue WO-412: verify and re-qualify reflow profile on Line 2.",
+      "payload": { "work_order_id": "WO-412", "title": "Verify and re-qualify reflow profile Line 2" }
+    },
+    {
+      "id": "A4",
+      "kind": "customer_reply",
+      "summary": "Draft bilingual (Japanese and English) reply to Hoshino Denso (fictional) with containment, root cause and CAPA number.",
+      "payload": { "languages": ["ja", "en"], "capa_id": "CAPA-0142" }
+    }
+  ],
+  "memory_hits": [],
+  "missing_data": [],
+  "approver": "",
+  "chart_url": "/api/charts/mock_reflow.png"
+}

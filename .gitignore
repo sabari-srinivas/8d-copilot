@@ -1,0 +1,13 @@
+backend/.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.env
+.env.local
+.env.production
+backend/data/out/*
+!backend/data/out/.gitkeep
+frontend/node_modules/
+frontend/dist/
+.DS_Store
+.pytest_cache/

@@ -1,0 +1,274 @@
+[
+  {
+    "seq": 0,
+    "ts": "2026-10-16T10:02:00.000Z",
+    "agent": "system",
+    "type": "step_started",
+    "title": "Investigation started",
+    "detail": "",
+    "data": {}
+  },
+  {
+    "seq": 1,
+    "ts": "2026-10-16T10:02:00.600Z",
+    "agent": "intake",
+    "type": "tool_call",
+    "title": "Reading complaint C-2026-031",
+    "detail": "",
+    "data": { "tool": "read_complaint", "args": { "complaint_id": "C-2026-031" } }
+  },
+  {
+    "seq": 2,
+    "ts": "2026-10-16T10:02:01.200Z",
+    "agent": "intake",
+    "type": "tool_result",
+    "title": "Hoshino Denso (fictional) · ECU-PCB-7 · lot L2611 · 14 of 500",
+    "detail": "Complaint parsed",
+    "data": { "tool": "read_complaint", "summary": "Hoshino Denso (fictional) · ECU-PCB-7 · lot L2611 · 14 of 500" }
+  },
+  {
+    "seq": 3,
+    "ts": "2026-10-16T10:02:01.800Z",
+    "agent": "intake",
+    "type": "tool_result",
+    "title": "Read 9 rows from lot_traveler_line2_wk41.xlsx",
+    "detail": "Traveler loaded for lot L2611",
+    "data": { "tool": "read_traveler", "summary": "Read 9 rows from lot_traveler_line2_wk41.xlsx" }
+  },
+  {
+    "seq": 4,
+    "ts": "2026-10-16T10:02:02.400Z",
+    "agent": "vision",
+    "type": "step_started",
+    "title": "Looking at the defect photo",
+    "detail": "",
+    "data": {}
+  },
+  {
+    "seq": 5,
+    "ts": "2026-10-16T10:02:03.000Z",
+    "agent": "vision",
+    "type": "tool_result",
+    "title": "Defect classified: solder bridge",
+    "detail": "Vision model localized the defect on the uploaded photo",
+    "data": {
+      "type": "solder_bridge",
+      "severity": "major",
+      "box": [0.41, 0.36, 0.17, 0.12],
+      "confidence": 0.86,
+      "visual_evidence": "Continuous bright solder joining two adjacent fine-pitch pads."
+    }
+  },
+  {
+    "seq": 6,
+    "ts": "2026-10-16T10:02:03.600Z",
+    "agent": "investigator",
+    "type": "step_started",
+    "title": "Checking quality memory",
+    "detail": "",
+    "data": {}
+  },
+  {
+    "seq": 7,
+    "ts": "2026-10-16T10:02:04.200Z",
+    "agent": "investigator",
+    "type": "tool_result",
+    "title": "No similar past case found",
+    "detail": "",
+    "data": { "tool": "query_memory", "summary": "No similar past case found" }
+  },
+  {
+    "seq": 8,
+    "ts": "2026-10-16T10:02:04.800Z",
+    "agent": "investigator",
+    "type": "hypothesis",
+    "title": "H1: Stencil wear increasing solder volume",
+    "detail": "Testing stencil_print_count vs defect lots",
+    "data": {
+      "id": "H1",
+      "category": "Machine",
+      "text": "Stencil wear is increasing deposited solder volume, causing bridging between fine-pitch pads.",
+      "parameter": "stencil_print_count",
+      "event_wo_id": null,
+      "direction": "higher"
+    }
+  },
+  {
+    "seq": 9,
+    "ts": "2026-10-16T10:02:05.400Z",
+    "agent": "investigator",
+    "type": "hypothesis_result",
+    "title": "H1 rejected",
+    "detail": "Welch t-test, defect lots vs good lots",
+    "data": {
+      "hypothesis_id": "H1",
+      "verdict": "rejected",
+      "test": "Welch t-test",
+      "p_value": 0.0001,
+      "effect": "-38,400 prints (new stencil ST-07B)",
+      "effect_value": -38400.0,
+      "effect_unit": "prints",
+      "n_defect": 6,
+      "n_good": 58,
+      "group_labels": ["defect lots", "good lots"],
+      "chart_url": null
+    }
+  },
+  {
+    "seq": 10,
+    "ts": "2026-10-16T10:02:06.000Z",
+    "agent": "investigator",
+    "type": "hypothesis",
+    "title": "H2: Reflow peak temperature drift after WO-388",
+    "detail": "Testing reflow_peak_temp_c vs defect lots",
+    "data": {
+      "id": "H2",
+      "category": "Machine",
+      "text": "Reflow peak temperature drifted upward after work order WO-388 (profile change), causing excess solder flow and bridging.",
+      "parameter": "reflow_peak_temp_c",
+      "event_wo_id": "WO-388",
+      "direction": "higher"
+    }
+  },
+  {
+    "seq": 11,
+    "ts": "2026-10-16T10:02:06.600Z",
+    "agent": "investigator",
+    "type": "hypothesis_result",
+    "title": "H2 supported",
+    "detail": "Welch t-test, defect lots vs good lots",
+    "data": {
+      "hypothesis_id": "H2",
+      "verdict": "supported",
+      "test": "Welch t-test",
+      "p_value": 0.0000,
+      "effect": "+8.2 °C mean peak temp",
+      "effect_value": 8.2,
+      "effect_unit": "°C",
+      "n_defect": 6,
+      "n_good": 58,
+      "group_labels": ["defect lots", "good lots"],
+      "chart_url": "/api/charts/mock_reflow.png"
+    }
+  },
+  {
+    "seq": 12,
+    "ts": "2026-10-16T10:02:07.200Z",
+    "agent": "investigator",
+    "type": "hypothesis",
+    "title": "H3: Room humidity slowing flux activation",
+    "detail": "Testing room_humidity_pct vs defect lots",
+    "data": {
+      "id": "H3",
+      "category": "Environment",
+      "text": "Elevated room humidity is slowing flux activation, leading to solder bridging.",
+      "parameter": "room_humidity_pct",
+      "event_wo_id": null,
+      "direction": "higher"
+    }
+  },
+  {
+    "seq": 13,
+    "ts": "2026-10-16T10:02:07.800Z",
+    "agent": "investigator",
+    "type": "hypothesis_result",
+    "title": "H3 rejected",
+    "detail": "Welch t-test, defect lots vs good lots",
+    "data": {
+      "hypothesis_id": "H3",
+      "verdict": "rejected",
+      "test": "Welch t-test",
+      "p_value": 0.62,
+      "effect": "+0.4 %RH",
+      "effect_value": 0.4,
+      "effect_unit": "%RH",
+      "n_defect": 6,
+      "n_good": 58,
+      "group_labels": ["defect lots", "good lots"],
+      "chart_url": null
+    }
+  },
+  {
+    "seq": 14,
+    "ts": "2026-10-16T10:02:08.400Z",
+    "agent": "investigator",
+    "type": "hypothesis",
+    "title": "H4: Operator change to OP-17",
+    "detail": "Testing operator_id vs defect lots",
+    "data": {
+      "id": "H4",
+      "category": "Man",
+      "text": "A shift change to operator OP-17 increased variability in manual touch-up, causing bridging.",
+      "parameter": "operator_id",
+      "event_wo_id": null,
+      "direction": "higher"
+    }
+  },
+  {
+    "seq": 15,
+    "ts": "2026-10-16T10:02:09.000Z",
+    "agent": "investigator",
+    "type": "hypothesis_result",
+    "title": "H4 inconclusive",
+    "detail": "Fisher exact, defect lots vs good lots",
+    "data": {
+      "hypothesis_id": "H4",
+      "verdict": "inconclusive",
+      "test": "Fisher exact",
+      "p_value": 0.041,
+      "effect": "+0.52 share of OP-17 lots",
+      "effect_value": 0.52,
+      "effect_unit": "share of OP-17 lots",
+      "n_defect": 6,
+      "n_good": 58,
+      "group_labels": ["defect lots", "good lots"],
+      "chart_url": null
+    }
+  },
+  {
+    "seq": 16,
+    "ts": "2026-10-16T10:02:09.600Z",
+    "agent": "evidence",
+    "type": "citation",
+    "title": "Citing PFMEA row 14",
+    "detail": "Linking root cause to failure mode and effects analysis",
+    "data": {
+      "label": "PFMEA row 14",
+      "source": "PFMEA",
+      "ref": "row 14",
+      "quote": "Reflow peak temperature out of profile window is a listed cause of solder bridging on fine-pitch pads."
+    }
+  },
+  {
+    "seq": 17,
+    "ts": "2026-10-16T10:02:10.200Z",
+    "agent": "evidence",
+    "type": "citation",
+    "title": "Citing Control plan item 6",
+    "detail": "Linking root cause to control plan requirement",
+    "data": {
+      "label": "Control plan item 6",
+      "source": "Control plan",
+      "ref": "item 6",
+      "quote": "Reflow peak temperature profile verification is required after any reflow profile change work order."
+    }
+  },
+  {
+    "seq": 18,
+    "ts": "2026-10-16T10:02:10.800Z",
+    "agent": "writer",
+    "type": "draft_ready",
+    "title": "8D draft ready for review",
+    "detail": "",
+    "data": { "status": "draft_ready" }
+  },
+  {
+    "seq": 19,
+    "ts": "2026-10-16T10:02:11.400Z",
+    "agent": "system",
+    "type": "done",
+    "title": "Investigation complete",
+    "detail": "",
+    "data": {}
+  }
+]
