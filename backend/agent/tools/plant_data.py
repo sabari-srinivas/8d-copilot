@@ -61,27 +61,38 @@ def get_store() -> PlantStore:
 
 
 @lru_cache
-def joined() -> pd.DataFrame:
+def _joined_cached() -> pd.DataFrame:
+    """Reads and joins the CSVs once per process. Never returned directly — joined()
+    is the public entry point and always hands back a copy of this frame."""
     store = get_store()
     df = store.lots().merge(store.process(), on="lot_id")
     df["date"] = pd.to_datetime(df["date"])
     df["bridge_rate"] = df.defects_solder_bridge / df.qty
-    # Defensive copy: this DataFrame is lru_cache'd and shared by every caller across the
-    # process. Without the copy, the first caller that mutates its result (even via a
-    # column assignment on what looks like a local variable) would silently poison the
-    # one cached object for everyone else. The copy is cheap next to the CSV read above.
-    return df.copy()
+    return df
+
+
+def joined() -> pd.DataFrame:
+    """Lots joined to process with a bridge_rate column.
+
+    Returns a fresh copy on every call: the underlying frame is cached for the life of
+    the process (via _joined_cached, @lru_cache), so handing out the cached object
+    itself would let one caller's in-place mutation poison every later caller. The
+    copy happens here, outside the cached function, so it runs on every call rather
+    than once on the first cache miss.
+    """
+    return _joined_cached().copy()
 
 
 def _reset_caches() -> None:
-    """Clear get_store/joined caches. For tests only — production code never calls this.
+    """Clear get_store/_joined_cached caches. For tests only — production code never
+    calls this.
 
-    get_store() and joined() are @lru_cache'd on purpose for request-path performance,
-    but that means a test that regenerates the CSVs or flips PLANT_BACKEND mid-session
-    would silently keep reading stale data without this.
+    get_store() and _joined_cached() are @lru_cache'd on purpose for request-path
+    performance, but that means a test that regenerates the CSVs or flips
+    PLANT_BACKEND mid-session would silently keep reading stale data without this.
     """
     get_store.cache_clear()
-    joined.cache_clear()
+    _joined_cached.cache_clear()
 
 
 def get_lot_genealogy(lot_id: str) -> dict:
