@@ -3,9 +3,12 @@ exactly one LLM call writes the bilingual reply (PRD 9.2).
 
 Convention (see agent/agents/__init__.py): every blocking Gemini/embedding call in this
 package runs through `asyncio.to_thread` so the event loop stays free for the SSE stream
-and every other request while this agent is working.
+and every other request while this agent is working. `save_quality_memory` embeds under
+the hood, so it goes through `asyncio.to_thread` here too, the same as
+`investigator.py`'s `search_quality_memory` call.
 """
 import asyncio
+import logging
 from datetime import date
 
 from pydantic import BaseModel
@@ -15,6 +18,8 @@ from agent.models import Investigation
 from agent.state import get_state
 from agent.tools.llm import generate_structured, load_prompt
 from agent.tools.memory import save_quality_memory
+
+log = logging.getLogger(__name__)
 
 
 class Replies(BaseModel):
@@ -45,6 +50,16 @@ async def apply_approval(inv: Investigation, *, approver: str, edits: dict[str, 
             # the one named here.
             old = getattr(inv.eight_d, section_name)
             setattr(inv.eight_d, section_name, old.model_copy(update={"text": new_text}))
+
+    # Claim the investigation before creating anything. The record-creation loop below
+    # is plain code that cannot realistically fail, but the bilingual reply and the
+    # quality-memory save are both network calls that can — and if either raises after
+    # the CAPA/hold/work order are already created, the status guard above must still
+    # stop a retry from creating a second set of records. Persisting "approved" here,
+    # first, means a retry always hits main.py's 409 instead.
+    inv.status = "approved"
+    inv.approver = approver
+    state.save_investigation(inv)
 
     accepted = {a.id: a for a in inv.proposed_actions if a.id not in rejected_action_ids}
     cause = _confirmed_cause(inv)
@@ -80,23 +95,35 @@ async def apply_approval(inv: Investigation, *, approver: str, edits: dict[str, 
                   f"Lots contained: {', '.join(inv.hold_lots)}\n"
                   f"CAPA number: {out['capa_id']}\n"
                   f"Permanent action: {inv.eight_d.D5.text if inv.eight_d else ''}\n")
-        replies = await asyncio.to_thread(generate_structured, prompt, Replies,
-                                          temperature=0.3)
-        out["replies"] = replies.model_dump()
+        try:
+            replies = await asyncio.to_thread(generate_structured, prompt, Replies,
+                                              temperature=0.3)
+            out["replies"] = replies.model_dump()
+        except Exception as exc:
+            # Degrade, don't explode: the approval and the records already created are
+            # real and must stand. Never log the prompt or the reply text — only the
+            # exception's class name (PRD "no secrets, no payloads in logs").
+            log.warning("customer reply generation failed: %s", exc.__class__.__name__)
+            await bus.publish(inv.id, "system", "error",
+                              "Could not draft the customer reply",
+                              detail=exc.__class__.__name__)
 
     if cause:
-        out["memory_id"] = save_quality_memory(
-            investigation_id=inv.id,
-            defect_type=inv.defect.type if inv.defect else "other",
-            root_cause=cause,
-            parameter=next((h.parameter or "" for h in inv.hypotheses
-                            if h.id in {r.hypothesis_id for r in inv.results
-                                        if r.verdict == "supported"}), ""),
-            line=line, capa_id=out["capa_id"] or "", lot_id=inv.lot_id)
+        try:
+            out["memory_id"] = await asyncio.to_thread(
+                save_quality_memory, investigation_id=inv.id,
+                defect_type=inv.defect.type if inv.defect else "other",
+                root_cause=cause,
+                parameter=next((h.parameter or "" for h in inv.hypotheses
+                                if h.id in {r.hypothesis_id for r in inv.results
+                                            if r.verdict == "supported"}), ""),
+                line=line, capa_id=out["capa_id"] or "", lot_id=inv.lot_id)
+        except Exception as exc:
+            log.warning("quality memory save failed: %s", exc.__class__.__name__)
+            await bus.publish(inv.id, "system", "error",
+                              "Could not save the confirmed cause to quality memory",
+                              detail=exc.__class__.__name__)
 
-    inv.status = "approved"
-    inv.approver = approver
-    state.save_investigation(inv)
     await bus.publish(inv.id, "system", "done", f"8D approved by {approver}",
                       detail=note, data={k: v for k, v in out.items() if k != "replies"})
     return out

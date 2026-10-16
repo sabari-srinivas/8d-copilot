@@ -100,7 +100,19 @@ async def test_rejecting_capa_creates_no_capa_record(store):
     out = await actions.apply_approval(_inv(), approver="Priya R.", edits={},
                                        rejected_action_ids=["A1"], note="")
     assert out["capa_id"] is None
-    assert not store._records.get("capa")
+    # The counters are reset before every test (conftest._reset_id_counters), so the
+    # first capa id that WOULD have been issued is deterministic. Using the public
+    # get_record accessor (not the store's private _records dict) keeps this test valid
+    # against either StateStore backend.
+    assert store.get_record("capa", "CAPA-0142") is None
+
+
+@pytest.mark.asyncio
+async def test_rejecting_hold_creates_no_hold_record(store):
+    out = await actions.apply_approval(_inv(), approver="Priya R.", edits={},
+                                       rejected_action_ids=["A2"], note="")
+    assert out["hold_id"] is None
+    assert store.get_record("hold", "H-77") is None
 
 
 @pytest.mark.asyncio
@@ -118,3 +130,61 @@ async def test_approving_twice_is_rejected(store):
     with pytest.raises(ValueError, match="already approved"):
         await actions.apply_approval(store.get_investigation("inv_1"), approver="Priya R.",
                                      edits={}, rejected_action_ids=[], note="")
+
+
+@pytest.mark.asyncio
+async def test_a_failed_customer_reply_still_returns_the_other_results(store, monkeypatch):
+    def _raise(*a, **k):
+        raise RuntimeError("model unavailable")
+    monkeypatch.setattr(actions, "generate_structured", _raise)
+
+    out = await actions.apply_approval(_inv(), approver="Priya R.", edits={},
+                                       rejected_action_ids=[], note="")
+    assert out["replies"] is None
+    assert out["capa_id"] is not None
+    assert out["hold_id"] is not None
+    assert out["work_order_id"] is not None
+    assert out["memory_id"] is not None
+    assert store.get_investigation("inv_1").status == "approved"
+
+
+@pytest.mark.asyncio
+async def test_a_failed_memory_save_still_returns_the_other_results(store, monkeypatch):
+    def _raise(*a, **k):
+        raise RuntimeError("embedding service unavailable")
+    monkeypatch.setattr(actions, "save_quality_memory", _raise)
+
+    out = await actions.apply_approval(_inv(), approver="Priya R.", edits={},
+                                       rejected_action_ids=[], note="")
+    assert out["memory_id"] is None
+    assert out["capa_id"] is not None
+    assert out["hold_id"] is not None
+    assert out["work_order_id"] is not None
+    assert out["replies"] is not None
+
+
+@pytest.mark.asyncio
+async def test_a_failure_after_claiming_still_blocks_a_second_approval_without_duplicates(
+        store, monkeypatch):
+    """Reproduces the reviewer's exact scenario: force the memory save to raise after the
+    CAPA and hold have already been created, then confirm a retry on the same
+    investigation raises (rather than issuing a second CAPA/hold) because the
+    investigation was already claimed as "approved" before those records were made."""
+    def _raise(*a, **k):
+        raise RuntimeError("embedding service unavailable")
+    monkeypatch.setattr(actions, "save_quality_memory", _raise)
+
+    inv = _inv()
+    out = await actions.apply_approval(inv, approver="Priya R.", edits={},
+                                       rejected_action_ids=[], note="")
+    assert out["memory_id"] is None
+    assert out["capa_id"] == "CAPA-0142"
+    assert out["hold_id"] == "H-77"
+
+    with pytest.raises(ValueError, match="already approved"):
+        await actions.apply_approval(store.get_investigation("inv_1"), approver="Priya R.",
+                                     edits={}, rejected_action_ids=[], note="")
+
+    # No second CAPA or hold was created by the retry attempt.
+    assert store.get_record("capa", "CAPA-0143") is None
+    assert store.get_record("hold", "H-78") is None
