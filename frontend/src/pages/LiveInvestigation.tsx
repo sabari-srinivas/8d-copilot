@@ -6,6 +6,35 @@ import { DefectPhoto } from "../components/DefectPhoto";
 import { HypothesisCard } from "../components/HypothesisCard";
 import { Timeline } from "../components/Timeline";
 
+function ReconnectingBanner() {
+  return (
+    <div className="card p-3 flex items-center gap-2 text-sm" role="status" style={{ borderColor: "var(--amber)" }}>
+      <span
+        className="inline-block h-2 w-2 rounded-full animate-pulse"
+        style={{ background: "var(--amber)" }}
+        aria-hidden="true"
+      />
+      <span style={{ color: "var(--amber)" }}>Reconnecting to the investigation…</span>
+    </div>
+  );
+}
+
+function WarningsNote({ warnings }: { warnings: string[] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <div className="card p-3 flex flex-col gap-1 text-xs" style={{ borderColor: "var(--amber)" }} role="note">
+      <p className="font-semibold" style={{ color: "var(--amber)" }}>
+        Provenance check flagged a number in the draft
+      </p>
+      {warnings.map((w, i) => (
+        <p key={i} className="opacity-80">
+          {w}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 function StatusBanner({
   status,
   errorMessage,
@@ -76,11 +105,15 @@ export function LiveInvestigation() {
         </h1>
       </div>
 
+      {stream.reconnecting && <ReconnectingBanner />}
+
       <StatusBanner
         status={stream.status}
         errorMessage={stream.errorMessage}
         onReview={() => navigate(`/inv/${id}/review`)}
       />
+
+      <WarningsNote warnings={stream.warnings} />
 
       <div className="grid lg:grid-cols-[2fr_1fr] gap-6 items-start">
         <div className="flex flex-col gap-4 min-w-0">

@@ -188,4 +188,10 @@ export interface CreateInvestigationResult {
 export interface HealthResult {
   ok: boolean;
   model: string;
+  backends: {
+    plant: string;
+    state: string;
+    docs: string;
+    files: string;
+  };
 }

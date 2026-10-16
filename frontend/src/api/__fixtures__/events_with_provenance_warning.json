@@ -1,0 +1,71 @@
+[
+  {
+    "seq": 0,
+    "ts": "2026-10-16T10:02:00.000Z",
+    "agent": "system",
+    "type": "step_started",
+    "title": "Investigation started",
+    "detail": "",
+    "data": {}
+  },
+  {
+    "seq": 1,
+    "ts": "2026-10-16T10:02:08.000Z",
+    "agent": "investigator",
+    "type": "hypothesis_result",
+    "title": "H2 supported",
+    "detail": "Welch t-test, defect lots vs good lots",
+    "data": {
+      "hypothesis_id": "H2",
+      "verdict": "supported",
+      "test": "Welch t-test",
+      "p_value": 0.0001,
+      "effect": "+8.2 °C mean peak temp",
+      "effect_value": 8.2,
+      "effect_unit": "°C",
+      "n_defect": 6,
+      "n_good": 58,
+      "group_labels": ["defect lots", "good lots"],
+      "chart_url": "/api/charts/mock_reflow.png"
+    }
+  },
+  {
+    "seq": 2,
+    "ts": "2026-10-16T10:02:11.000Z",
+    "agent": "writer",
+    "type": "step_started",
+    "title": "Drafting the 8D",
+    "detail": "",
+    "data": {}
+  },
+  {
+    "seq": 3,
+    "ts": "2026-10-16T10:02:11.400Z",
+    "agent": "system",
+    "type": "error",
+    "title": "Numbers in the draft are not backed by a tool result",
+    "detail": "D4 cites 9.1 °C which is not in any test result or grounded fact",
+    "data": {
+      "message": "D4 cites 9.1 °C which is not in any test result or grounded fact",
+      "violations": ["D4 cites 9.1 °C which is not in any test result or grounded fact"]
+    }
+  },
+  {
+    "seq": 4,
+    "ts": "2026-10-16T10:02:11.800Z",
+    "agent": "writer",
+    "type": "draft_ready",
+    "title": "8D draft ready for review",
+    "detail": "",
+    "data": { "status": "draft_ready" }
+  },
+  {
+    "seq": 5,
+    "ts": "2026-10-16T10:02:12.400Z",
+    "agent": "system",
+    "type": "done",
+    "title": "Investigation complete",
+    "detail": "",
+    "data": {}
+  }
+]
