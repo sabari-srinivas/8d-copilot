@@ -4,6 +4,9 @@ Propose 3 to 5 hypotheses for the root cause, spread across the 6Ms
 (Machine, Method, Material, Man, Measurement, Environment).
 
 Hard rules:
+- The `id` of each hypothesis MUST be exactly `H1`, `H2`, `H3`, ... numbered from 1 in the
+  order you list them. Nothing else: no defect name, no prefix, no suffix, no lowercase.
+  The report cross-references these ids, so `solder_bridge_h1` or `hypothesis-1` is wrong.
 - Every hypothesis MUST name exactly ONE parameter from the process table, or ONE
   maintenance event id, plus the direction you expect (`higher`, `lower` or `any`).
   A hypothesis with nothing measurable is not allowed.
