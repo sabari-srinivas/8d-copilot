@@ -81,6 +81,25 @@
     "seq": 8,
     "ts": "2026-10-16T10:02:04.800Z",
     "agent": "investigator",
+    "type": "tool_result",
+    "title": "Found maintenance event WO-388 on Line 2",
+    "detail": "Reflow profile change; post-check not yet closed",
+    "data": {
+      "tool": "get_maintenance_events",
+      "summary": "WO-388: reflow profile change on Line 2, post-check profile_verification_pending",
+      "wo_id": "WO-388",
+      "line": "Line 2",
+      "date": "2026-10-09",
+      "asset": "Reflow Oven RF-02",
+      "description": "Reflow profile change - zone 5-7 setpoint adjustment",
+      "status": "completed",
+      "post_check": "profile_verification_pending"
+    }
+  },
+  {
+    "seq": 9,
+    "ts": "2026-10-16T10:02:05.400Z",
+    "agent": "investigator",
     "type": "hypothesis",
     "title": "H1: Stencil wear increasing solder volume",
     "detail": "Testing stencil_print_count vs defect lots",
@@ -94,8 +113,8 @@
     }
   },
   {
-    "seq": 9,
-    "ts": "2026-10-16T10:02:05.400Z",
+    "seq": 10,
+    "ts": "2026-10-16T10:02:06.000Z",
     "agent": "investigator",
     "type": "hypothesis_result",
     "title": "H1 rejected",
@@ -115,8 +134,8 @@
     }
   },
   {
-    "seq": 10,
-    "ts": "2026-10-16T10:02:06.000Z",
+    "seq": 11,
+    "ts": "2026-10-16T10:02:06.600Z",
     "agent": "investigator",
     "type": "hypothesis",
     "title": "H2: Reflow peak temperature drift after WO-388",
@@ -131,8 +150,8 @@
     }
   },
   {
-    "seq": 11,
-    "ts": "2026-10-16T10:02:06.600Z",
+    "seq": 12,
+    "ts": "2026-10-16T10:02:07.200Z",
     "agent": "investigator",
     "type": "hypothesis_result",
     "title": "H2 supported",
@@ -152,8 +171,8 @@
     }
   },
   {
-    "seq": 12,
-    "ts": "2026-10-16T10:02:07.200Z",
+    "seq": 13,
+    "ts": "2026-10-16T10:02:07.800Z",
     "agent": "investigator",
     "type": "hypothesis",
     "title": "H3: Room humidity slowing flux activation",
@@ -168,8 +187,8 @@
     }
   },
   {
-    "seq": 13,
-    "ts": "2026-10-16T10:02:07.800Z",
+    "seq": 14,
+    "ts": "2026-10-16T10:02:08.400Z",
     "agent": "investigator",
     "type": "hypothesis_result",
     "title": "H3 rejected",
@@ -189,8 +208,8 @@
     }
   },
   {
-    "seq": 14,
-    "ts": "2026-10-16T10:02:08.400Z",
+    "seq": 15,
+    "ts": "2026-10-16T10:02:09.000Z",
     "agent": "investigator",
     "type": "hypothesis",
     "title": "H4: Operator change to OP-17",
@@ -205,8 +224,8 @@
     }
   },
   {
-    "seq": 15,
-    "ts": "2026-10-16T10:02:09.000Z",
+    "seq": 16,
+    "ts": "2026-10-16T10:02:09.600Z",
     "agent": "investigator",
     "type": "hypothesis_result",
     "title": "H4 inconclusive",
@@ -226,36 +245,36 @@
     }
   },
   {
-    "seq": 16,
-    "ts": "2026-10-16T10:02:09.600Z",
+    "seq": 17,
+    "ts": "2026-10-16T10:02:10.200Z",
     "agent": "evidence",
     "type": "citation",
     "title": "Citing PFMEA row 14",
     "detail": "Linking root cause to failure mode and effects analysis",
     "data": {
       "label": "PFMEA row 14",
-      "source": "PFMEA",
-      "ref": "row 14",
-      "quote": "Reflow peak temperature out of profile window is a listed cause of solder bridging on fine-pitch pads."
+      "source": "pfmea.md",
+      "ref": "Row 14",
+      "quote": "Row 14 — Failure mode: Solder bridging. Cause: Reflow peak temperature above profile limit. Prevention: Profile verification after any oven maintenance. Detection: AOI 100% + profile check per shift."
     }
   },
   {
-    "seq": 17,
-    "ts": "2026-10-16T10:02:10.200Z",
+    "seq": 18,
+    "ts": "2026-10-16T10:02:10.800Z",
     "agent": "evidence",
     "type": "citation",
     "title": "Citing Control plan item 6",
     "detail": "Linking root cause to control plan requirement",
     "data": {
       "label": "Control plan item 6",
-      "source": "Control plan",
-      "ref": "item 6",
-      "quote": "Reflow peak temperature profile verification is required after any reflow profile change work order."
+      "source": "control_plan.md",
+      "ref": "Item 6",
+      "quote": "Item 6 — Reflow profile verification after maintenance. Reflow peak temperature must be held within 235-250 °C per the qualified profile. Reaction plan: hold lots, re-profile."
     }
   },
   {
-    "seq": 18,
-    "ts": "2026-10-16T10:02:10.800Z",
+    "seq": 19,
+    "ts": "2026-10-16T10:02:11.400Z",
     "agent": "writer",
     "type": "draft_ready",
     "title": "8D draft ready for review",
@@ -263,8 +282,8 @@
     "data": { "status": "draft_ready" }
   },
   {
-    "seq": 19,
-    "ts": "2026-10-16T10:02:11.400Z",
+    "seq": 20,
+    "ts": "2026-10-16T10:02:12.000Z",
     "agent": "system",
     "type": "done",
     "title": "Investigation complete",

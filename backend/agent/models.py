@@ -147,6 +147,7 @@ class Investigation(BaseModel):
     results: list[HypothesisResult] = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
     traveler_rows: list[TravelerRow] = Field(default_factory=list)
+    hold_lots: list[str] = Field(default_factory=list)
     eight_d: EightD | None = None
     proposed_actions: list[ProposedAction] = Field(default_factory=list)
     memory_hits: list[MemoryEntry] = Field(default_factory=list)

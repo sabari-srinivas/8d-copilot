@@ -22,7 +22,7 @@ Base: `{API_URL}/api`
 6. `GET /memory` → saved confirmed causes.
 7. `GET /health` → `{ "ok": true, "model": "<GEMINI_MODEL>" }`
 
-Commit `mock_events.json` (15–18 events for the golden path) and `mock_investigation.json` so the UI can be built with `VITE_USE_MOCKS=true` (replay one event every 600 ms).
+Commit `mock_events.json` (21 events for the golden path) and `mock_investigation.json` so the UI can be built with `VITE_USE_MOCKS=true` (replay one event every 600 ms).
 
 The table below lets the UI switch on `type` exhaustively:
 

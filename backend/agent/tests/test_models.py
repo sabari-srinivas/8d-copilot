@@ -1,6 +1,6 @@
 import pytest
 from agent.config import Settings
-from agent.models import Defect, Hypothesis, HypothesisResult, EightD, Investigation
+from agent.models import Defect, Hypothesis, HypothesisResult, EightD, Investigation, Event
 
 
 def test_model_name_must_come_from_env():
@@ -39,3 +39,35 @@ def test_eight_d_has_all_eight_sections():
 def test_hypothesis_result_verdicts_are_the_contract_values():
     assert set(HypothesisResult.model_fields["verdict"].annotation.__args__) == {
         "supported", "rejected", "inconclusive"}
+
+
+def test_event_round_trips_a_representative_event():
+    e = Event(seq=11, ts="2026-10-16T10:02:06.600Z", agent="investigator",
+              type="hypothesis_result", title="H2 supported",
+              detail="Welch t-test, defect lots vs good lots",
+              data={"hypothesis_id": "H2", "verdict": "supported", "p_value": 0.0001})
+    assert e.seq == 11
+    assert e.agent == "investigator"
+    assert e.type == "hypothesis_result"
+    assert e.data["hypothesis_id"] == "H2"
+
+
+def test_event_agent_values_are_the_contract_values():
+    assert set(Event.model_fields["agent"].annotation.__args__) == {
+        "intake", "vision", "investigator", "evidence", "writer", "system"}
+
+
+def test_event_type_values_are_the_contract_values():
+    assert set(Event.model_fields["type"].annotation.__args__) == {
+        "step_started", "tool_call", "tool_result", "memory_hit", "hypothesis",
+        "hypothesis_result", "citation", "draft_ready", "done", "error"}
+
+
+def test_event_rejects_unknown_type():
+    with pytest.raises(ValueError):
+        Event(seq=0, ts="2026-10-16T10:02:00.000Z", agent="system", type="bogus", title="x")
+
+
+def test_event_rejects_unknown_agent():
+    with pytest.raises(ValueError):
+        Event(seq=0, ts="2026-10-16T10:02:00.000Z", agent="bogus", type="done", title="x")
