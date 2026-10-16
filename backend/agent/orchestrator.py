@@ -5,6 +5,7 @@ verdict: the verdicts come from agent/tools/stats_test.py, and the two routes to
 `insufficient_evidence` — no defect visible in the photo, and no hypothesis supported —
 are both decided by Python, not by a model.
 """
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -68,13 +69,37 @@ async def run_investigation(inv_id: str) -> None:
     try:
         if inv is None:
             raise KeyError(f"unknown investigation {inv_id} — call start() first")
-        complaint, traveler_rows = await intake.run(
-            inv_id, upload.get("complaint_text", ""), inv.complaint_id,
-            upload.get("traveler"))
-        inv.traveler_rows = traveler_rows
-        state.save_investigation(inv)
 
-        inv.defect = await vision.run(inv_id, upload["image"], upload.get("mime", "image/jpeg"))
+        # intake and vision read disjoint inputs (the complaint text/traveler vs. the
+        # image bytes) and neither depends on the other's output, so they run
+        # concurrently rather than back to back — each makes its own Gemini call, and
+        # running them in sequence was summing past the PRD's 10 s "first visible
+        # result" budget. Explicit Tasks (not bare coroutines passed to gather) so that
+        # if one side raises, the other has a cancellable handle: asyncio.gather does
+        # not cancel sibling awaitables on its own when one of them fails, so without
+        # this a failing intake would leave vision's Gemini call running in the
+        # background after the request that started it has already failed.
+        intake_task = asyncio.create_task(intake.run(
+            inv_id, upload.get("complaint_text", ""), inv.complaint_id,
+            upload.get("traveler")))
+        vision_task = asyncio.create_task(
+            vision.run(inv_id, upload["image"], upload.get("mime", "image/jpeg")))
+        try:
+            (complaint, traveler_rows), defect = await asyncio.gather(intake_task, vision_task)
+        except Exception:
+            for task in (intake_task, vision_task):
+                if not task.done():
+                    task.cancel()
+            # Wait for both to actually finish unwinding (cancelled or otherwise) before
+            # this function's own except/finally runs, so nothing is still in flight
+            # once the request that triggered it has failed. return_exceptions=True:
+            # we only care that they are done, not about a second exception from the
+            # task that didn't raise first.
+            await asyncio.gather(intake_task, vision_task, return_exceptions=True)
+            raise
+
+        inv.traveler_rows = traveler_rows
+        inv.defect = defect
         state.save_investigation(inv)
 
         if inv.defect.type == "none":

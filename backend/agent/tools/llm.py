@@ -1,6 +1,6 @@
 """The only place a Gemini client is constructed. Model IDs come from env, never from code."""
 import logging
-from functools import lru_cache
+import threading
 from pathlib import Path
 from typing import TypeVar
 
@@ -17,6 +17,21 @@ class StructuredOutputError(RuntimeError):
     """The model failed schema validation twice (PRD 9.5)."""
 
 
+# Task 10's threading fix runs intake and vision concurrently via asyncio.to_thread, so
+# this is the first code path in the app where two threads can call _client() at once.
+# A bare @lru_cache does NOT serialize the wrapped call itself (only the cache dict
+# bookkeeping) — two threads racing on a cold cache both construct their own
+# genai.Client, and the loser's instance is dropped and garbage-collected as soon as its
+# single in-flight call returns, which closes its own httpx client via Client.__del__.
+# Observed live, reproducibly, on a freshly started server: the very first investigation
+# after a cold start intermittently raised "Cannot send a request, as the client has
+# been closed." A plain threading.Lock with double-checked locking makes construction
+# happen exactly once, with every other caller blocking on the lock until it's ready
+# rather than racing to build a second, short-lived client.
+_client_lock = threading.Lock()
+_client_instance = None
+
+
 def load_prompt(name: str) -> str:
     path = PROMPTS / f"{name}.md"
     if not path.exists():
@@ -24,12 +39,16 @@ def load_prompt(name: str) -> str:
     return path.read_text()
 
 
-@lru_cache
 def _client():
-    from google import genai
-    s = get_settings()
-    return genai.Client(vertexai=True, project=s.gcp_project,
-                        location=s.vertex_region or s.gcp_region)
+    global _client_instance
+    if _client_instance is None:
+        with _client_lock:
+            if _client_instance is None:          # still None after acquiring the lock
+                from google import genai
+                s = get_settings()
+                _client_instance = genai.Client(vertexai=True, project=s.gcp_project,
+                                                location=s.vertex_region or s.gcp_region)
+    return _client_instance
 
 
 def _raw_generate(*, prompt: str, parts: list | None, schema: dict | None,
