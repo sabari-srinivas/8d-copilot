@@ -255,7 +255,15 @@ async def test_upload_bytes_are_released_on_failure(wired, monkeypatch):
     with pytest.raises(RuntimeError, match="the model is down"):
         await orchestrator.run_investigation(inv_id)
     assert inv_id not in orchestrator._uploads
-    assert [e.type for e in bus.history(inv_id)][-2:] == ["error", "done"]
+    types = [e.type for e in bus.history(inv_id)]
+    # Count, not just a slice of the tail: [-2:] alone would pass equally for
+    # [..., "error", "done"] and for a duplicated [..., "error", "done", "error",
+    # "done"], which is exactly the regression the backstop-vs-guarantee boundary
+    # could reintroduce if main.py's backstop ever fired for a failure the
+    # orchestrator's own except/finally already handled.
+    assert types.count("error") == 1, f"expected exactly one error event, got: {types}"
+    assert types.count("done") == 1, f"expected exactly one done event, got: {types}"
+    assert types[-2:] == ["error", "done"]
 
 
 @pytest.mark.asyncio
@@ -276,7 +284,37 @@ async def test_a_crashed_investigation_is_stored_as_failed(wired, monkeypatch):
     inv = wired.get_investigation(inv_id)
     assert inv.status == "failed"
     assert "the model is down" in inv.missing_data[0]
-    assert [e.type for e in bus.history(inv_id)][-2:] == ["error", "done"]
+    types = [e.type for e in bus.history(inv_id)]
+    # Count, not just the tail slice: see the identical note in
+    # test_upload_bytes_are_released_on_failure above -- a slice of the last two
+    # types alone cannot distinguish one error/done pair from a duplicated one.
+    assert types.count("error") == 1, f"expected exactly one error event, got: {types}"
+    assert types.count("done") == 1, f"expected exactly one done event, got: {types}"
+    assert types[-2:] == ["error", "done"]
+
+
+@pytest.mark.asyncio
+async def test_a_failure_message_is_length_bounded(wired, monkeypatch):
+    """CLAUDE.md rule 6 (no secrets, no image bytes, in logs or events) holds on the
+    failure path too: an SDK exception's str() can embed the request it was sent --
+    for the vision call, that payload includes the image bytes -- so the message
+    that reaches the stored investigation and the `error` event must be capped to a
+    small prefix rather than passed through verbatim."""
+    huge_payload = "/9j/" + "A" * 5000  # stands in for an SDK error echoing a base64 image
+    def boom(*a, **k):
+        raise RuntimeError(huge_payload)
+    monkeypatch.setattr(inv_agent, "generate_structured", boom)
+    inv_id = await orchestrator.start(
+        complaint_id="C-2026-031", lot_id=GOLDEN_LOT,
+        image_bytes=(FX / "tiny.jpg").read_bytes(), mime_type="image/jpeg",
+        complaint_text="solder bridging")
+    with pytest.raises(RuntimeError):
+        await orchestrator.run_investigation(inv_id)
+    inv = wired.get_investigation(inv_id)
+    error_event = next(e for e in bus.history(inv_id) if e.type == "error")
+    for message in (inv.missing_data[0], error_event.data["message"], error_event.detail):
+        assert len(message) < len(huge_payload)
+        assert len(message) <= orchestrator.MAX_ERROR_MESSAGE_LEN + 1   # +1 for the ellipsis
 
 
 @pytest.mark.asyncio

@@ -20,14 +20,16 @@ class StructuredOutputError(RuntimeError):
 # Task 10's threading fix runs intake and vision concurrently via asyncio.to_thread, so
 # this is the first code path in the app where two threads can call _client() at once.
 # A bare @lru_cache does NOT serialize the wrapped call itself (only the cache dict
-# bookkeeping) — two threads racing on a cold cache both construct their own
-# genai.Client, and the loser's instance is dropped and garbage-collected as soon as its
-# single in-flight call returns, which closes its own httpx client via Client.__del__.
-# Observed live, reproducibly, on a freshly started server: the very first investigation
-# after a cold start intermittently raised "Cannot send a request, as the client has
-# been closed." A plain threading.Lock with double-checked locking makes construction
-# happen exactly once, with every other caller blocking on the lock until it's ready
-# rather than racing to build a second, short-lived client.
+# bookkeeping) — two threads racing on a cold cache could each construct their own
+# genai.Client. Observed live, reproducibly, on a freshly started server: the very first
+# investigation after a cold start intermittently raised "Cannot send a request, as the
+# client has been closed." The exact mechanism by which a second, momentarily-unused
+# Client ends up closing a client in use was not isolated further; what is confirmed is
+# that two Clients were being constructed on a cold start at all, which a plain
+# threading.Lock with double-checked locking rules out — construction now happens
+# exactly once, with every other caller blocking on the lock until it's ready rather
+# than racing to build a second one. (Stress-probed with 16 threads released off a
+# shared barrier: exactly one construction, no caller ever observes None.)
 _client_lock = threading.Lock()
 _client_instance = None
 

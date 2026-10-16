@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from agent.config import get_settings
 from agent.events import TERMINAL, bus
-from agent.orchestrator import run_investigation, start
+from agent.orchestrator import format_error_message, run_investigation, start
 from agent.state import get_state
 from agent.tools.intake_tools import list_complaints
 from agent.tools.memory import list_quality_memory
@@ -23,6 +23,13 @@ log = logging.getLogger(__name__)
 app = FastAPI(title="8D Copilot API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
+
+# asyncio.create_task only keeps a WEAK reference to the task via the event loop; nothing
+# else in this module holds the returned Task object, so without a strong reference
+# somewhere, the task backing the one background investigation this whole API exists to
+# run can be garbage-collected mid-run. Keeping it in this set until it finishes is the
+# standard fix (see the asyncio.create_task docs' own warning about this).
+_tasks: set[asyncio.Task] = set()
 
 
 class ApproveRequest(BaseModel):
@@ -57,7 +64,9 @@ async def create_investigation(
         image_bytes=await image.read(), mime_type=image.content_type or "image/jpeg",
         complaint_text=complaint_text,
         traveler_bytes=await traveler.read() if traveler else None)
-    asyncio.create_task(_run(inv_id))
+    task = asyncio.create_task(_run(inv_id))
+    _tasks.add(task)
+    task.add_done_callback(_tasks.discard)
     return {"id": inv_id, "status": "running"}
 
 
@@ -66,14 +75,17 @@ async def _run(inv_id: str):
         await run_investigation(inv_id)
     except Exception as exc:
         log.exception("background investigation %s failed", inv_id)
-        # The orchestrator's own except/finally already publishes "error" then "done"
-        # and closes the bus for every real failure. This is a backstop for anything
-        # that bypasses that guarantee (a crash before run_investigation's own try
-        # block, a stub replacing it in a test) — without it, a subscriber would wait
-        # on the bus queue forever and the SSE connection would never terminate.
+        # run_investigation's own except/finally now sets status="failed" and
+        # publishes "error" then "done" for every failure reachable from inside its
+        # try block — which, since task 10's review, is effectively everything
+        # (get_state()/get_investigation() moved inside that try too). This is a
+        # backstop for genuinely unreachable cases only: something that bypasses
+        # run_investigation entirely (a stub replacing it, as in the SSE contract
+        # test). Without it, a subscriber would wait on the bus queue forever and the
+        # SSE connection would never terminate.
         history = bus.history(inv_id)
         if not history or history[-1].type not in TERMINAL:
-            message = f"{exc.__class__.__name__}: {exc}"
+            message = format_error_message(exc)
             await bus.publish(inv_id, "system", "error", "The investigation could not finish",
                               detail=message, data={"message": message})
             await bus.publish(inv_id, "system", "done", "Investigation complete")

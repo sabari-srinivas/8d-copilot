@@ -23,6 +23,19 @@ NO_DEFECT_VISIBLE = ("No defect is visible in the photo. Upload a clearer image 
                      "reported area, or escalate to a physical inspection of the "
                      "returned units.")
 
+# CLAUDE.md rule 6: no secrets, no image bytes, in logs or events. An SDK exception's
+# str() can embed the request it was sent -- for the vision call, that payload includes
+# the image bytes -- so the message that reaches the stored investigation and the
+# `error` event is capped to a small prefix rather than passed through verbatim. This
+# is a length bound, not a content scrub: it does not search for byte patterns, it just
+# puts a fixed ceiling on how much of any single exception's text can leak.
+MAX_ERROR_MESSAGE_LEN = 300
+
+
+def format_error_message(exc: BaseException) -> str:
+    text = f"{exc.__class__.__name__}: {exc}"
+    return text if len(text) <= MAX_ERROR_MESSAGE_LEN else text[:MAX_ERROR_MESSAGE_LEN] + "…"
+
 
 async def start(*, complaint_id: str, lot_id: str, image_bytes: bytes, mime_type: str,
                 complaint_text: str, traveler_bytes: bytes | None = None) -> str:
@@ -63,10 +76,17 @@ def _propose_actions(inv: Investigation) -> list[ProposedAction]:
 
 
 async def run_investigation(inv_id: str) -> None:
-    state = get_state()
-    inv = state.get_investigation(inv_id)
-    upload = _uploads.get(inv_id, {})
+    state = None
+    inv = None
     try:
+        # get_state()/get_investigation()/the upload lookup are inside the try, not
+        # ahead of it: if any of them raised out here, the except/finally below
+        # (which sets status="failed" and guarantees error-then-done) would never
+        # run, leaving the investigation stuck at status="running" forever for a
+        # polling client — the exact bug the "failed" status was added to close.
+        state = get_state()
+        inv = state.get_investigation(inv_id)
+        upload = _uploads.get(inv_id, {})
         if inv is None:
             raise KeyError(f"unknown investigation {inv_id} — call start() first")
 
@@ -95,6 +115,16 @@ async def run_investigation(inv_id: str) -> None:
             # once the request that triggered it has failed. return_exceptions=True:
             # we only care that they are done, not about a second exception from the
             # task that didn't raise first.
+            #
+            # This guarantee covers the asyncio Task, not the OS thread underneath it.
+            # Each agent's own blocking call runs via `asyncio.to_thread`, and a thread
+            # pool future is NOT cancellable once started: cancelling the Task only
+            # stops it resuming after that `await` returns, so the worker thread (and
+            # whatever in-flight Gemini call it's running) keeps executing in the
+            # background until it finishes on its own. The practical consequence is
+            # benign — cancellation lands before the agent's own `bus.publish(...)`
+            # call after the blocking call, so no further event can reach the stream —
+            # but the thread itself is not stopped, only its result is discarded.
             await asyncio.gather(intake_task, vision_task, return_exceptions=True)
             raise
 
@@ -131,14 +161,25 @@ async def run_investigation(inv_id: str) -> None:
         state.save_investigation(inv)
     except Exception as exc:
         log.exception("investigation %s failed", inv_id)
-        message = f"{exc.__class__.__name__}: {exc}"
+        message = format_error_message(exc)
         # Reuse missing_data rather than add a new field: it is already the
         # Investigation's place for "why this run did not reach a verdict", shown
         # to the user, and a crash is exactly that — just undetermined earlier.
+        #
+        # `inv is not None` is the only guard that matters: inv can only have been
+        # assigned after `state = get_state()` already succeeded, so `state` is
+        # never None here when `inv` isn't. The save itself gets its own try/except:
+        # if persisting the failure fails too (e.g. the same outage that caused the
+        # original exception), that secondary failure must not replace or swallow
+        # the investigation's own exception below — it only gets logged.
         if inv is not None:
-            inv.status = "failed"
-            inv.missing_data = [message]
-            state.save_investigation(inv)
+            try:
+                inv.status = "failed"
+                inv.missing_data = [message]
+                state.save_investigation(inv)
+            except Exception:
+                log.exception("investigation %s: could not persist the failed status",
+                              inv_id)
         await bus.publish(inv_id, "system", "error", "The investigation could not finish",
                           detail=message, data={"message": message})
         raise

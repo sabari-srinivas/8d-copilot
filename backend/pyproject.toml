@@ -19,15 +19,19 @@ dependencies = [
   "matplotlib>=3.9",
   "openpyxl>=3.1",
   "pillow>=10.4",
-  # anyio>=4.15 deprecates anyio.abc.BlockingPortal, which the installed starlette
-  # (fastapi's TestClient) still imports — upgrading starlette to the first release
-  # that fixes this (1.x) in turn requires an `httpx2` package that isn't published
-  # yet. Pin below the deprecation until one side moves.
-  "anyio<4.15",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "httpx>=0.27"]
+dev = [
+  "pytest>=8.3", "pytest-asyncio>=0.24", "httpx>=0.27",
+  # anyio>=4.15 deprecates anyio.abc.BlockingPortal, which the installed starlette
+  # (fastapi's TestClient) still imports — upgrading starlette to the first release
+  # that fixes this (1.x) in turn requires an `httpx2` package that isn't published
+  # yet. Pin below the deprecation until one side moves. Only `fastapi.testclient`
+  # (imported by the test suite) hits this path, so the pin belongs here, not in the
+  # runtime dependencies a deployed service installs.
+  "anyio<4.15",
+]
 
 [tool.setuptools.packages.find]
 include = ["agent*", "data*", "infra*"]

@@ -12,7 +12,18 @@ CONTRACT = Path(__file__).resolve().parents[3] / "docs" / "contract"
 @pytest.fixture
 def client(monkeypatch):
     from agent import main
-    monkeypatch.setattr(main, "run_investigation", lambda inv_id: None)
+    from agent.events import bus
+
+    async def fake_run_investigation(inv_id):
+        """Mirrors what orchestrator.run_investigation actually guarantees on
+        success — publish done, close the bus — rather than a non-awaitable stub
+        that crashes and relies on main._run's backstop to terminate the stream.
+        The SSE test below must pass because termination works, not because the
+        stub raises a TypeError."""
+        await bus.publish(inv_id, "system", "done", "Investigation complete")
+        bus.close(inv_id)
+
+    monkeypatch.setattr(main, "run_investigation", fake_run_investigation)
     return TestClient(main.app)
 
 
