@@ -52,7 +52,10 @@ async def start(*, complaint_id: str, lot_id: str, image_bytes: bytes, mime_type
     # the photo a human reviewer needs to see), so without this the UI would never have
     # anything to point an <img> at.
     ext = mimetypes.guess_extension(mime_type or "") or ".jpg"
-    photo_url = put_bytes(image_bytes, f"photos/{inv_id}{ext}", mime_type or "image/jpeg")
+    # Threaded (task 14): under FILES_BACKEND=gcs this is a network upload, made from
+    # inside this async function — the same event-loop freeze risk as the model calls.
+    photo_url = await asyncio.to_thread(
+        put_bytes, image_bytes, f"photos/{inv_id}{ext}", mime_type or "image/jpeg")
     inv = Investigation(id=inv_id, complaint_id=complaint_id, lot_id=lot_id, status="running",
                         created=datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         photo_url=photo_url)
@@ -157,7 +160,9 @@ async def run_investigation(inv_id: str) -> None:
         note = " | ".join(r.remarks for r in traveler_rows if r.remarks)
         inv.hypotheses, inv.results, inv.memory_hits = await investigator.run(
             inv_id, inv.lot_id, inv.defect, note)
-        inv.hold_lots = get_comparison_groups(inv.lot_id)["defect_lots"]
+        # Threaded (task 14): under PLANT_BACKEND=bigquery this is a network call.
+        groups = await asyncio.to_thread(get_comparison_groups, inv.lot_id)
+        inv.hold_lots = groups["defect_lots"]
         inv.chart_url = next((r.chart_url for r in inv.results if r.chart_url), None)
         state.save_investigation(inv)
 
@@ -169,7 +174,9 @@ async def run_investigation(inv_id: str) -> None:
         inv.missing_data = out.missing_data
         inv.status = "draft_ready" if out.status == "draft_ready" else "insufficient_evidence"
         if inv.status == "draft_ready":
-            inv.proposed_actions = _propose_actions(inv)
+            # Threaded (task 14): _propose_actions calls get_lot_genealogy, a network
+            # call under PLANT_BACKEND=bigquery.
+            inv.proposed_actions = await asyncio.to_thread(_propose_actions, inv)
         state.save_investigation(inv)
     except Exception as exc:
         log.exception("investigation %s failed", inv_id)

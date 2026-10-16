@@ -3,8 +3,14 @@ verdict, p-value and effect size on this page comes back from `test_hypothesis`.
 
 Convention (see agent/agents/__init__.py): every blocking Gemini/embedding call in this
 package runs through `asyncio.to_thread` so the event loop stays free for the SSE stream
-and every other request while this agent is working. `test_hypothesis` is NOT threaded:
-it is local numpy/scipy/pandas computation on an in-memory frame, no network call."""
+and every other request while this agent is working. `get_lot_genealogy`,
+`get_process_window` and `get_maintenance_events` are threaded too (task 14): under
+PLANT_BACKEND=bigquery they are network calls, not millisecond CSV reads, and
+`get_maintenance_events` in particular hits BigQuery on every call (plant_data's
+`joined()` cache only covers the lots+process join, not maintenance). `test_hypothesis`
+is threaded for the same reason even though its own numpy/scipy work is local: it calls
+`get_maintenance_events` (event hypotheses) and `render_reflow_chart` ->
+`agent.tools.storage.put_bytes`, which is a GCS upload under FILES_BACKEND=gcs."""
 import asyncio
 import logging
 
@@ -63,9 +69,9 @@ async def run(inv_id: str, lot_id: str, defect: Defect,
                           data={"tool": "search_quality_memory",
                                 "summary": "No similar past case found"})
 
-    genealogy = get_lot_genealogy(lot_id)
-    window = get_process_window()
-    events = get_maintenance_events(genealogy["line"])
+    genealogy = await asyncio.to_thread(get_lot_genealogy, lot_id)
+    window = await asyncio.to_thread(get_process_window)
+    events = await asyncio.to_thread(get_maintenance_events, genealogy["line"])
     await bus.publish(inv_id, "investigator", "tool_call",
                       f"Pulling lot genealogy and process window for {lot_id}",
                       detail=f"Line {genealogy['line']}, shift {genealogy['shift']}, "
@@ -109,9 +115,9 @@ async def run(inv_id: str, lot_id: str, defect: Defect,
                                          "event_wo_id": hypothesis.event_wo_id,
                                          "direction": hypothesis.direction}})
         try:
-            result = test_hypothesis(hypothesis.id, lot_id, parameter=hypothesis.parameter,
-                                     event_wo_id=hypothesis.event_wo_id,
-                                     direction=hypothesis.direction)
+            result = await asyncio.to_thread(
+                test_hypothesis, hypothesis.id, lot_id, parameter=hypothesis.parameter,
+                event_wo_id=hypothesis.event_wo_id, direction=hypothesis.direction)
         except ValueError as exc:
             await bus.publish(inv_id, "investigator", "tool_result",
                               f"{hypothesis.id} could not be tested", detail=str(exc),

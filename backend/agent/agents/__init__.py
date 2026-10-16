@@ -24,24 +24,35 @@ thread hop would cost more than the blocking call itself. See `vision.py`, `inta
 yet) will call `generate_structured` for the bilingual customer reply and must follow the
 same convention.
 
-**This exemption list is conditional on the local backends, not permanent.** The
-"doesn't need it" calls above — `get_lot_genealogy`/`get_process_window`/
-`get_maintenance_events`/`get_comparison_groups` in `agent/tools/plant_data.py`, and
-`agent/tools/storage.put_bytes` (used by the chart tool) — are fast and local only
-because this project currently runs `PLANT_BACKEND=csv` and `FILES_BACKEND=local`. Flip
-either to its cloud form (`bigquery`, `gcs`) and the exact same call sites become real
-network I/O made synchronously from inside an `async def` agent — the same event-loop
-freeze this file exists to prevent, reintroduced silently by a config change rather than
-a code change. Before flipping either selector in a task that talks to the real backend,
-re-measure call latency under load and thread whichever calls turn out slow enough to
-matter; do not assume the exemption still holds.
+**Update (task 14 — the cloud backends are now live).** The paragraph above used to read
+"this exemption list is conditional on the local backends, not permanent" as a warning
+for whoever flipped `PLANT_BACKEND`/`FILES_BACKEND`/`STATE_BACKEND` next. That task has
+now happened, and the exemption no longer holds, by design: every call site that becomes
+real network I/O under a cloud backend is threaded the same way the model calls are.
 
-The highest-risk one is NOT in this package at all: `agent/events.py`'s `EventBus.publish`
-calls `get_state().append_event(inv_id, event)` synchronously, on every single published
-event, with no exemption review of its own because it was written against
-`STATE_BACKEND=memory`. Flip `STATE_BACKEND` to `firestore` and every `bus.publish` —
-which is to say every step of every agent, several times each — becomes a Firestore
-write on the event loop, on the exact SSE path this task exists to keep responsive. A
-later task that turns on the cloud backends must treat this one as the first thing to
-measure, not an afterthought.
+- `get_lot_genealogy`, `get_process_window` and `get_maintenance_events`
+  (`agent/tools/plant_data.py`), called from `agent/agents/investigator.py`, are
+  threaded there. `test_hypothesis` (`agent/tools/stats_test.py`) is threaded at its
+  call site in `investigator.py` too: it calls `get_maintenance_events` for event
+  hypotheses and `render_reflow_chart` -> `agent.tools.storage.put_bytes` for the
+  chart, either of which is a network call once `PLANT_BACKEND=bigquery` /
+  `FILES_BACKEND=gcs`.
+- `agent.tools.storage.put_bytes` is also threaded at its other call site, the photo
+  upload in `agent/orchestrator.py:start`.
+- `get_comparison_groups` and the `_propose_actions` helper (which calls
+  `get_lot_genealogy`) are threaded at their call sites in
+  `agent/orchestrator.py:run_investigation`.
+- `agent/events.py`'s `EventBus.publish` — the highest-risk one, since it runs on
+  every single published event regardless of which agent is working — now wraps
+  `get_state().append_event(...)` in `asyncio.to_thread` too, so `STATE_BACKEND=firestore`
+  does not turn every event into a blocking Firestore write on the SSE path.
+- `search_quality_docs` (`agent/tools/doc_search.py`), called from
+  `agent/agents/evidence.py`, was already threaded before this task because it always
+  embeds the query — `DOCS_BACKEND=vertex` needed no new threading.
+
+Measured before/after latency for each flip is in the task 14 report
+(`.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-14-report.md`). If a future
+change adds a new call to a `*_BACKEND`-selected tool from async agent code, thread it
+the same way — do not assume a CSV/local/in-memory backend's speed generalizes to its
+cloud counterpart.
 """

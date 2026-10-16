@@ -39,7 +39,10 @@ class EventBus:
         # History then queues, with no await in between, so a subscriber can never
         # observe the event in one and miss it in the other.
         self._history[inv_id].append(event)
-        get_state().append_event(inv_id, event)
+        # Threaded (task 14): under STATE_BACKEND=firestore this is a network write,
+        # on every single published event — the exact SSE path task 10 threaded the
+        # model calls to protect. See agent/agents/__init__.py.
+        await asyncio.to_thread(get_state().append_event, inv_id, event)
         for queue in list(self._subscribers[inv_id]):
             queue.put_nowait(event)
         return event

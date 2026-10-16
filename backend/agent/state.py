@@ -125,9 +125,11 @@ class FirestoreStateStore:
             {**entry.model_dump(), "embedding": Vector(vector)})
 
     def search_memory(self, vector, defect_type, k):
+        from google.cloud.firestore_v1 import FieldFilter
         from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
         from google.cloud.firestore_v1.vector import Vector
-        query = (self._db.collection("memory").where("defect_type", "==", defect_type)
+        query = (self._db.collection("memory")
+                 .where(filter=FieldFilter("defect_type", "==", defect_type))
                  .find_nearest(vector_field="embedding", query_vector=Vector(vector),
                                distance_measure=DistanceMeasure.COSINE, limit=k,
                                distance_result_field="distance"))

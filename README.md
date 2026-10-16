@@ -24,7 +24,8 @@ prototype/
 │   │   └── out/
 │   ├── infra/
 │   │   ├── probe_models.py
-│   │   └── build_rag.py
+│   │   ├── build_rag.py
+│   │   └── load_data.sh
 │   ├── pyproject.toml
 │   └── pytest.ini
 ├── frontend/           # React UI (not yet created)
@@ -104,6 +105,39 @@ Run `python -m infra.build_rag` once per project to build the corpus — it uplo
 files, writes `RAG_CORPUS=...` into `.env`, and proves the corpus answers (PRD Phase 2
 gate: a test query returns PFMEA Row 14 with its source). All three steps
 (bucket, corpus, file import) are idempotent — safe to re-run.
+
+## Cloud backends
+
+The app runs identically against local files (`PLANT_BACKEND=csv`, `STATE_BACKEND=memory`,
+`DOCS_BACKEND=local`, `FILES_BACKEND=local`) or Google Cloud
+(`PLANT_BACKEND=bigquery`, `STATE_BACKEND=firestore`, `DOCS_BACKEND=vertex`,
+`FILES_BACKEND=gcs`) — `GET /api/health`'s `backends` object reports which. `.env.example`
+commits the local values so a fresh clone works offline; the cloud values belong only in
+the deployed `.env`, never in the repo.
+
+`infra/load_data.sh` loads `lots`/`process`/`maintenance`/`complaints` into BigQuery
+(idempotent — re-running overwrites rather than duplicating). The verification query
+(average reflow peak temperature by line) should show Line 2 visibly higher than Line 1,
+since every planted drift lot (`data/constants.DRIFT_LOT_IDS`) is on Line 2.
+
+**Threading convention when a selector flips to its cloud form.** `agent/agents/__init__.py`
+documents, call site by call site, which plant/state/files calls run through
+`asyncio.to_thread` and why: under the local backends they are millisecond file I/O, but
+under `PLANT_BACKEND=bigquery` / `STATE_BACKEND=firestore` / `FILES_BACKEND=gcs` the exact
+same call sites become real network I/O, made from `async def` agent code on the single
+asyncio event loop that also serves the SSE stream and `GET /api/health` (task 10's fix
+protects this same loop from the model calls). A future call into a `*_BACKEND`-selected
+tool from async code must follow the same convention — see the task 14 report
+(`.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-14-report.md`) for the measured
+before/after latency per selector.
+
+**Cross-backend data-shape note.** `bigquery.QueryJob.to_dataframe()` returns a DATE
+column as `datetime.date` objects (dtype `dbdate`), not a plain string the way
+`pd.read_csv` does. `agent/tools/plant_data.py`'s `BigQueryPlantStore` normalises every
+date-like column back to an ISO string immediately after reading, so every caller —
+including `get_maintenance_events`'s raw record, which lands verbatim in an `Event.data`
+dict seen by both the SSE stream's `json.dumps` and `FirestoreStateStore`'s Firestore
+encoder — sees the same shape regardless of which `PlantStore` is behind `get_store()`.
 
 ## Known issues
 

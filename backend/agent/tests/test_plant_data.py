@@ -1,5 +1,8 @@
+import datetime
 import json
 
+import db_dtypes  # noqa: F401  -- registers the "dbdate" extension dtype with pandas
+import pandas as pd
 import pytest
 from data.constants import DRIFT_LOT_IDS, GOLDEN_LOT, PRODUCT
 from agent.tools import plant_data as pd_tools
@@ -78,6 +81,30 @@ def test_joined_returns_a_fresh_copy_so_callers_cannot_poison_the_cache():
 def test_unknown_lot_raises_a_clear_error():
     with pytest.raises(KeyError, match="L9999"):
         pd_tools.get_lot_genealogy("L9999")
+
+
+def test_stringify_dates_turns_bigquery_date_columns_into_plain_strings():
+    """task 14: BigQuery's to_dataframe() returns a DATE column as dtype `dbdate`
+    (datetime.date objects), not a plain string like pd.read_csv — found when
+    get_maintenance_events's raw record, with a dbdate `date` field, was spread into an
+    Event.data dict and broke both json.dumps (the SSE stream) and
+    FirestoreStateStore.append_event (STATE_BACKEND=firestore) with 'Cannot convert to
+    a Firestore Value'. No network call: builds the same dtype BigQuery would return,
+    using the same db-dtypes package bigquery.to_dataframe() depends on."""
+    df = pd.DataFrame({
+        "wo_id": ["WO-1", "WO-2"],
+        "date": pd.Series([datetime.date(2026, 10, 8), datetime.date(2026, 9, 19)],
+                          dtype="dbdate"),
+    })
+    out = pd_tools._stringify_dates(df)
+    assert out["date"].tolist() == ["2026-10-08", "2026-09-19"]
+    assert all(isinstance(v, str) for v in out["date"])
+    assert json.dumps(out.to_dict("records"))  # raises TypeError if still a date object
+
+    # Columns that are already plain strings (the CSV-backend shape) pass through
+    # unchanged — this function must be safe to apply unconditionally.
+    untouched = pd.DataFrame({"wo_id": ["WO-1"], "date": ["2026-10-08"]})
+    assert pd_tools._stringify_dates(untouched)["date"].tolist() == ["2026-10-08"]
 
 
 def test_reset_caches_clears_both_lru_caches():

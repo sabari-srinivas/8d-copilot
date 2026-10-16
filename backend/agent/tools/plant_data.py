@@ -37,6 +37,30 @@ class CsvPlantStore:
     def complaints(self): return self._read("complaints")
 
 
+def _stringify_dates(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalise BigQuery's DATE columns to plain ISO strings, in place.
+
+    `bigquery.QueryJob.to_dataframe()` returns a DATE column as dtype `dbdate`
+    (`datetime.date` objects), unlike `pd.read_csv`, which leaves every column as plain
+    text. Lots/process dates already get converted through `pd.to_datetime` +
+    `strftime` in `_joined_cached`/`get_lot_genealogy`, so those are safe either way —
+    but `get_maintenance_events` hands its rows straight through
+    (`m.sort_values("date").to_dict("records")`), and that record is later spread
+    verbatim into an `Event.data` dict (`agent/agents/investigator.py`). A raw
+    `datetime.date` there is not JSON-serialisable (breaks the SSE stream's
+    `json.dumps`) and not Firestore-serialisable (`FirestoreStateStore.append_event`
+    raises `TypeError: Cannot convert to a Firestore Value` on one) — found by running
+    PLANT_BACKEND=bigquery together with STATE_BACKEND=firestore (task 14). Converting
+    once, here, at the one place both backends' date columns funnel through, keeps
+    every caller's assumption (a plain string, exactly what CSV already handed them)
+    true regardless of which PlantStore is behind `get_store()`.
+    """
+    for col in df.columns:
+        if str(df[col].dtype) in ("dbdate", "dbtime") or "datetime64" in str(df[col].dtype):
+            df[col] = df[col].astype(str)
+    return df
+
+
 class BigQueryPlantStore:
     """Reads the BigQuery dataset loaded by infra/load_data.sh."""
 
@@ -47,7 +71,8 @@ class BigQueryPlantStore:
         self._dataset = f"{s.gcp_project}.{s.bq_dataset}"
 
     def _read(self, name: str) -> pd.DataFrame:
-        return self._client.query(f"SELECT * FROM `{self._dataset}.{name}`").to_dataframe()
+        df = self._client.query(f"SELECT * FROM `{self._dataset}.{name}`").to_dataframe()
+        return _stringify_dates(df)
 
     def lots(self): return self._read("lots")
     def process(self): return self._read("process")
