@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getInvestigation } from "../api/client";
+import { getInvestigation, resolveApiUrl } from "../api/client";
 import { useInvestigationStream } from "../api/useInvestigationStream";
 import { DefectPhoto } from "../components/DefectPhoto";
 import { HypothesisCard } from "../components/HypothesisCard";
@@ -94,7 +94,7 @@ export function LiveInvestigation() {
 
   useEffect(() => {
     if (!id) return;
-    getInvestigation(id).then((inv) => setPhotoUrl(inv.photo_url || null));
+    getInvestigation(id).then((inv) => setPhotoUrl(resolveApiUrl(inv.photo_url)));
   }, [id]);
 
   return (

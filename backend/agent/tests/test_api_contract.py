@@ -53,6 +53,28 @@ def test_creating_an_investigation_returns_id_and_running(client):
     assert body["status"] == "running"
 
 
+def test_the_uploaded_photo_is_saved_and_fetchable(client):
+    """Investigation.photo_url used to stay '' forever — nothing ever wrote it, so the
+    UI's defect photo (and its bounding box overlay) had nothing to point an <img> at
+    in live mode. orchestrator.start() now saves the upload through the same files
+    backend as the stats charts; this is the end-to-end proof that the URL it returns
+    is one `GET /api/files/...` can actually serve the bytes back from."""
+    image_bytes = (FX / "tiny.jpg").read_bytes()
+    resp = client.post("/api/investigations",
+                       files={"image": ("tiny.jpg", image_bytes, "image/jpeg")},
+                       data={"complaint_id": "C-2026-031", "lot_id": "L2611",
+                             "complaint_text": "solder bridging"})
+    inv_id = resp.json()["id"]
+
+    inv = client.get(f"/api/investigations/{inv_id}").json()
+    assert inv["photo_url"]
+    assert inv["photo_url"].startswith(f"/api/files/photos/{inv_id}")
+
+    photo = client.get(inv["photo_url"])
+    assert photo.status_code == 200
+    assert photo.content == image_bytes
+
+
 def test_creating_without_an_image_is_rejected(client):
     resp = client.post("/api/investigations",
                        data={"complaint_id": "C-2026-031", "lot_id": "L2611",

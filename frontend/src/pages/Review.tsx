@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { approve, getInvestigation } from "../api/client";
+import { approve, getInvestigationReady } from "../api/client";
+import { useInvestigationStream } from "../api/useInvestigationStream";
 import type { EightD, Investigation } from "../api/types";
 import { ActionToggle } from "../components/ActionToggle";
 import { EightDSection } from "../components/EightDSection";
+
+/** The draft is "here" once the status has left `running` and, if the draft was
+ * actually produced, `eight_d` has landed too (see getInvestigationReady). */
+function draftIsReady(inv: Investigation): boolean {
+  if (inv.status === "running") return false;
+  if (inv.status === "draft_ready") return inv.eight_d != null;
+  return true;
+}
 
 const SECTIONS: Array<{ id: keyof EightD; label: string }> = [
   { id: "D1", label: "Team" },
@@ -22,6 +31,11 @@ const SECTIONS: Array<{ id: keyof EightD; label: string }> = [
 export function Review() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  // Subscribed here (not just read on mount) so a `draft_ready`/`insufficient_evidence`
+  // that arrives — or arrived earlier in the investigation's history, replayed on
+  // (re)subscribe — is what actually triggers the GET below, per the contract note
+  // on getInvestigationReady: the event can beat the state it describes.
+  const stream = useInvestigationStream(id);
 
   const [inv, setInv] = useState<Investigation | null>(null);
   const [edits, setEdits] = useState<Record<string, string>>({});
@@ -31,8 +45,10 @@ export function Review() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
-    getInvestigation(id).then((data) => {
+    if (!id || stream.status === "running") return;
+    let cancelled = false;
+    getInvestigationReady(id, draftIsReady).then((data) => {
+      if (cancelled) return;
       setInv(data);
       if (data.eight_d) {
         const initial: Record<string, string> = {};
@@ -40,7 +56,10 @@ export function Review() {
         setEdits(initial);
       }
     });
-  }, [id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [id, stream.status]);
 
   const confirmedCause = useMemo(() => {
     if (!inv) return "";

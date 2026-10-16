@@ -7,6 +7,7 @@ are both decided by Python, not by a model.
 """
 import asyncio
 import logging
+import mimetypes
 import uuid
 from datetime import datetime, timezone
 
@@ -15,6 +16,7 @@ from agent.events import bus
 from agent.models import Investigation, ProposedAction
 from agent.state import get_state
 from agent.tools.plant_data import get_comparison_groups, get_lot_genealogy
+from agent.tools.storage import put_bytes
 
 log = logging.getLogger(__name__)
 _uploads: dict[str, dict] = {}        # inv_id -> raw bytes, kept out of the state store
@@ -42,8 +44,18 @@ async def start(*, complaint_id: str, lot_id: str, image_bytes: bytes, mime_type
     inv_id = f"inv_{uuid.uuid4().hex[:8]}"
     _uploads[inv_id] = {"image": image_bytes, "mime": mime_type,
                         "complaint_text": complaint_text, "traveler": traveler_bytes}
+    # The uploaded photo itself (as opposed to the vision agent's reading of it) has to
+    # be saved through the same files backend as the stats charts (agent/tools/storage.py)
+    # so the UI has a URL to show it from — PRD 143: "Shown on the photo as soon as it
+    # returns." `_uploads` above is in-memory and popped once the run finishes (CLAUDE.md
+    # rule 6 is about not putting image bytes in logs/events, not about never persisting
+    # the photo a human reviewer needs to see), so without this the UI would never have
+    # anything to point an <img> at.
+    ext = mimetypes.guess_extension(mime_type or "") or ".jpg"
+    photo_url = put_bytes(image_bytes, f"photos/{inv_id}{ext}", mime_type or "image/jpeg")
     inv = Investigation(id=inv_id, complaint_id=complaint_id, lot_id=lot_id, status="running",
-                        created=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+                        created=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                        photo_url=photo_url)
     get_state().save_investigation(inv)
     await bus.publish(inv_id, "system", "step_started", "Investigation started",
                       detail=f"Complaint {complaint_id} · lot {lot_id}")

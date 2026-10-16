@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getInvestigation } from "../api/client";
+import { getInvestigationReady, resolveApiUrl } from "../api/client";
+import { useInvestigationStream } from "../api/useInvestigationStream";
 import type { Investigation } from "../api/types";
 import { CitationChip } from "../components/CitationChip";
 import { TempChart } from "../components/TempChart";
@@ -14,17 +15,28 @@ function formatPValue(p: number): string {
  * chart, a full stats table per hypothesis, and every citation with its source quote. */
 export function Evidence() {
   const { id } = useParams<{ id: string }>();
+  // See Review.tsx: the GET can race the `draft_ready`/`insufficient_evidence` event
+  // that's supposed to mean "the run is done" — fetch once the stream says the run
+  // has left `running`, not unconditionally on mount.
+  const stream = useInvestigationStream(id);
   const [inv, setInv] = useState<Investigation | null>(null);
   const [chartFailed, setChartFailed] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
-    getInvestigation(id).then(setInv);
-  }, [id]);
+    if (!id || stream.status === "running") return;
+    let cancelled = false;
+    getInvestigationReady(id, (data) => data.status !== "running").then((data) => {
+      if (!cancelled) setInv(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, stream.status]);
 
   if (!inv) return <p className="text-sm opacity-60">Loading evidence…</p>;
 
   const hypothesisText = (hid: string) => inv.hypotheses.find((h) => h.id === hid)?.text ?? hid;
+  const chartUrl = resolveApiUrl(inv.chart_url);
 
   return (
     <div className="flex flex-col gap-6">
@@ -32,9 +44,9 @@ export function Evidence() {
 
       <section>
         <h2 className="text-sm font-semibold opacity-80 mb-2">Reflow peak temperature, Line 2</h2>
-        {inv.chart_url && !chartFailed ? (
+        {chartUrl && !chartFailed ? (
           <img
-            src={inv.chart_url}
+            src={chartUrl}
             alt="Chart comparing reflow peak temperature in defect lots versus good lots on Line 2, showing defect lots running hotter after work order WO-388."
             className="w-full rounded-xl border"
             style={{ borderColor: "var(--line)" }}
