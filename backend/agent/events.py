@@ -9,9 +9,15 @@ from typing import AsyncIterator
 from agent.models import Event
 from agent.state import get_state
 
-# Event types after which no further event is published for an investigation, so a
-# stream that has delivered one can end rather than hold the connection open.
-TERMINAL = ("done", "error")
+# Event types after which no further event is published for an investigation, so a stream
+# that has delivered one can end rather than hold the connection open.
+#
+# `error` is deliberately NOT terminal. The number-provenance pass emits `error` as a
+# warning mid-run — the draft still exists and the investigation still finishes — so
+# ending the stream there would cut the live trace off before `draft_ready`. The
+# orchestrator publishes `done` in a `finally`, on the success and the failure path
+# alike, so every run reaches a terminal event either way.
+TERMINAL = ("done",)
 # close() wakes blocked subscribers with this sentinel; it is never part of the history
 # and never yielded. seq is negative so it can never collide with a real event.
 _CLOSE_SENTINEL_SEQ = -1

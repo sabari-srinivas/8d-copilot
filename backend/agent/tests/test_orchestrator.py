@@ -5,6 +5,7 @@ draft, the complaint parse and the document retrieval (which needs an embedding 
 The statistics, the plant data, the comparison groups and the event bus are the real
 thing, so the four verdicts below are produced by scipy against the real dataset.
 """
+import asyncio
 import json
 from pathlib import Path
 
@@ -265,6 +266,41 @@ async def test_no_image_bytes_reach_the_event_stream(wired):
         blob = json.dumps(event.model_dump())
         assert "image_bytes" not in blob
         assert "\\u00ff" not in blob          # the JPEG marker bytes, had they leaked
+        assert "/9j/" not in blob            # ...or base64 of the same
+
+
+@pytest.mark.asyncio
+async def test_a_subscriber_that_arrives_after_the_post_sees_the_whole_run(wired, monkeypatch):
+    """The real UI sequence: POST returns, the browser navigates to /inv/:id, and only
+    then does it open the SSE stream. It must still get seq 0 onward — including the
+    mid-run provenance warning, which must not cut the stream short."""
+    invented = EightDSection(text="Peak temperature rose by 12.7 °C [Chart: reflow].")
+    monkeypatch.setattr(writer_agent, "generate_structured", lambda *a, **k:
+                        writer_agent.WriterOutput(status="draft_ready",
+                                                  eight_d=EightD(**{f"D{i}": invented
+                                                                    for i in range(1, 9)})))
+    inv_id = await orchestrator.start(
+        complaint_id="C-2026-031", lot_id=GOLDEN_LOT,
+        image_bytes=(FX / "tiny.jpg").read_bytes(), mime_type="image/jpeg",
+        complaint_text="solder bridging")
+
+    async def late_subscriber():
+        await asyncio.sleep(0.01)          # the browser navigating
+        return [event async for event in bus.subscribe(inv_id)]
+
+    seen, _ = await asyncio.gather(late_subscriber(),
+                                   orchestrator.run_investigation(inv_id))
+    assert [e.seq for e in seen] == [e.seq for e in bus.history(inv_id)]
+    assert seen[0].seq == 0 and seen[-1].type == "done"
+    types = [e.type for e in seen]
+    assert types.index("error") < types.index("draft_ready"), \
+        "the provenance warning must not truncate the trace"
+
+
+@pytest.mark.asyncio
+async def test_an_unknown_investigation_fails_with_a_clear_message(wired):
+    with pytest.raises(KeyError, match="call start"):
+        await orchestrator.run_investigation("inv_does_not_exist")
 
 
 @pytest.mark.asyncio

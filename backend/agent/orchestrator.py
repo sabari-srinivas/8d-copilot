@@ -66,6 +66,8 @@ async def run_investigation(inv_id: str) -> None:
     inv = state.get_investigation(inv_id)
     upload = _uploads.get(inv_id, {})
     try:
+        if inv is None:
+            raise KeyError(f"unknown investigation {inv_id} — call start() first")
         complaint, traveler_rows = await intake.run(
             inv_id, upload.get("complaint_text", ""), inv.complaint_id,
             upload.get("traveler"))

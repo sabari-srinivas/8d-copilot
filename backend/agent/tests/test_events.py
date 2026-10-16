@@ -106,6 +106,21 @@ async def test_an_event_published_during_replay_is_neither_lost_nor_duplicated()
 
 
 @pytest.mark.asyncio
+async def test_an_error_event_does_not_truncate_the_stream():
+    """The number-provenance pass emits `error` as a mid-run warning — the draft still
+    exists and the run still finishes. Ending the stream there would cut the live trace
+    off before `draft_ready`. Only `done` ends a stream."""
+    bus = EventBus()
+    task = asyncio.create_task(_take(bus, "inv_1", 3))
+    await asyncio.sleep(0.05)
+    await bus.publish("inv_1", "system", "error", "Numbers are not backed by a tool result")
+    await bus.publish("inv_1", "writer", "draft_ready", "8D draft ready for review")
+    await bus.publish("inv_1", "system", "done", "Investigation complete")
+    got = await asyncio.wait_for(task, timeout=2)
+    assert [e.type for e in got] == ["error", "draft_ready", "done"]
+
+
+@pytest.mark.asyncio
 async def test_a_subscriber_that_arrives_after_the_run_finished_does_not_hang():
     """A completed run's history ends in `done`; replaying it must end the stream too,
     otherwise a late SSE connection waits forever for an event that will never come."""
