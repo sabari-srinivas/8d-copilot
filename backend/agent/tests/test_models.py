@@ -62,7 +62,8 @@ def test_event_agent_values_are_the_contract_values():
 def test_event_type_values_are_the_contract_values():
     assert set(Event.model_fields["type"].annotation.__args__) == {
         "step_started", "tool_call", "tool_result", "memory_hit", "hypothesis",
-        "hypothesis_result", "citation", "draft_ready", "done", "error"}
+        "hypothesis_result", "citation", "draft_ready", "done", "error",
+        "capa_effectiveness"}
 
 
 def test_event_rejects_unknown_type():

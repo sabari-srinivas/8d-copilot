@@ -19,6 +19,7 @@ class PlantStore(Protocol):
     def process(self) -> pd.DataFrame: ...
     def maintenance(self) -> pd.DataFrame: ...
     def complaints(self) -> pd.DataFrame: ...
+    def capa_lots(self) -> pd.DataFrame: ...
 
 
 class CsvPlantStore:
@@ -35,6 +36,7 @@ class CsvPlantStore:
     def process(self): return self._read("process")
     def maintenance(self): return self._read("maintenance")
     def complaints(self): return self._read("complaints")
+    def capa_lots(self): return self._read("capa_lots")
 
 
 def _stringify_dates(df: pd.DataFrame) -> pd.DataFrame:
@@ -78,6 +80,7 @@ class BigQueryPlantStore:
     def process(self): return self._read("process")
     def maintenance(self): return self._read("maintenance")
     def complaints(self): return self._read("complaints")
+    def capa_lots(self): return self._read("capa_lots")
 
 
 @lru_cache
@@ -167,6 +170,49 @@ def get_maintenance_events(line: str, since: str | None = None) -> list[dict]:
     if since:
         m = m[pd.to_datetime(m.date) >= pd.Timestamp(since)]
     return m.sort_values("date").to_dict("records")
+
+
+def get_capa_lots(capa_id: str) -> pd.DataFrame:
+    """Historical, per-lot evidence for one CAPA, from the seed table written by
+    data/generate_plant.py (data/out/capa_lots.csv). Columns: capa_id, lot_id, line,
+    date, product, defect_type, qty, defects, complaint_id.
+
+    Returns an empty frame for any capa_id with no seed row -- in particular, every
+    CAPA created at runtime by a live approval (agent/agents/actions.py), which exists
+    only in agent.state, never in this CSV. See get_capa_defect_series for the fallback
+    that covers that case.
+    """
+    rows = get_store().capa_lots()
+    return rows[rows.capa_id == capa_id].copy()
+
+
+def get_capa_defect_series(capa_id: str, line: str, defect_type: str) -> pd.DataFrame:
+    """Per-lot defect rate to evaluate one CAPA's effect on `defect_type`, oldest lot
+    first. Columns: lot_id, date (Timestamp), rate. Two sources, tried in this order:
+
+    1. The seed table (get_capa_lots) -- CAPAs planted purely for the
+       effectiveness-verification demo (agent/tools/capa_check.py), weeks before the
+       current lots/process window and never merged into joined(), so they cannot move
+       a single p-value data/check_plant.py checks.
+    2. joined(), scoped to `line`, for a capa_id with no seed row -- i.e. every CAPA
+       created at runtime by a live approval. The per-lot rate is `bridge_rate` for
+       defect_type "solder_bridge" (the only defect this dataset tracks with its own
+       counter) and `defects_other / qty` for everything else, the one bucket every
+       other defect type falls into in this schema.
+    """
+    hist = get_capa_lots(capa_id)
+    if not hist.empty:
+        if "line" in hist.columns:
+            hist = hist[hist.line == line]
+        hist = hist.copy()
+        hist["date"] = pd.to_datetime(hist["date"])
+        hist["rate"] = hist.defects / hist.qty
+        return hist[["lot_id", "date", "rate"]].sort_values("date").reset_index(drop=True)
+
+    df = joined()
+    df = df[df.line == line].copy()
+    df["rate"] = df["bridge_rate"] if defect_type == "solder_bridge" else df.defects_other / df.qty
+    return df[["lot_id", "date", "rate"]].sort_values("date").reset_index(drop=True)
 
 
 def get_comparison_groups(lot_id: str, product: str = PRODUCT, days: int = 30) -> dict:

@@ -107,6 +107,39 @@ def test_stringify_dates_turns_bigquery_date_columns_into_plain_strings():
     assert pd_tools._stringify_dates(untouched)["date"].tolist() == ["2026-10-08"]
 
 
+def test_capa_lots_returns_only_the_requested_capa():
+    from data.constants import HISTORICAL_CAPA_ID
+    rows = pd_tools.get_capa_lots(HISTORICAL_CAPA_ID)
+    assert len(rows) == 24
+    assert set(rows.capa_id) == {HISTORICAL_CAPA_ID}
+    assert rows.empty is False
+
+    missing = pd_tools.get_capa_lots("CAPA-NOPE")
+    assert missing.empty
+
+
+def test_capa_defect_series_reads_the_historical_seed_table():
+    from data.constants import (HISTORICAL_CAPA_DEFECT_TYPE, HISTORICAL_CAPA_ID,
+                                HISTORICAL_CAPA_LINE)
+    series = pd_tools.get_capa_defect_series(HISTORICAL_CAPA_ID, HISTORICAL_CAPA_LINE,
+                                             HISTORICAL_CAPA_DEFECT_TYPE)
+    assert list(series.columns) == ["lot_id", "date", "rate"]
+    assert len(series) == 24
+    assert series["date"].is_monotonic_increasing
+    assert (series["rate"] >= 0).all()
+
+
+def test_capa_defect_series_falls_back_to_joined_for_a_live_capa():
+    """A CAPA created at runtime (agent/agents/actions.py) has no seed row -- the
+    series must come from the real lots/process join instead, scoped to the line."""
+    series = pd_tools.get_capa_defect_series("CAPA-0142", "L2", "solder_bridge")
+    assert not series.empty
+    assert set(series.lot_id) <= set(pd_tools.joined().query("line == 'L2'").lot_id)
+    joined_bridge = pd_tools.joined().set_index("lot_id")["bridge_rate"]
+    for row in series.itertuples():
+        assert row.rate == pytest.approx(joined_bridge[row.lot_id])
+
+
 def test_reset_caches_clears_both_lru_caches():
     store_before = pd_tools.get_store()
     cached_before = pd_tools._joined_cached()

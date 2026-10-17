@@ -17,7 +17,12 @@ Status = Literal["running", "draft_ready", "approved", "insufficient_evidence", 
 ActionKind = Literal["capa", "hold", "work_order", "customer_reply"]
 AgentName = Literal["intake", "vision", "investigator", "evidence", "writer", "system"]
 EventType = Literal["step_started", "tool_call", "tool_result", "memory_hit", "hypothesis",
-                    "hypothesis_result", "citation", "draft_ready", "done", "error"]
+                    "hypothesis_result", "citation", "draft_ready", "done", "error",
+                    "capa_effectiveness"]
+# Did a past CAPA actually reduce the defect rate (agent/tools/capa_check.py)? A plain
+# significance test has only three answers (Verdict above); "did this fix work" has an
+# honest fourth one a single test cannot express -- it worked, then stopped.
+CapaVerdict = Literal["worked", "never_worked", "regressed", "insufficient_data"]
 
 
 class Complaint(BaseModel):
@@ -90,6 +95,41 @@ class HypothesisResult(BaseModel):
     n_defect: int
     n_good: int
     group_labels: list[str] = Field(default_factory=list)
+    chart_url: str | None = None
+
+
+class CapaEffectiveness(BaseModel):
+    """Produced ONLY by agent/tools/capa_check.py. Same reporting shape as
+    HypothesisResult (test/p_value/effect/effect_value/effect_unit/group
+    sizes/group_labels/chart_url), computed by the same rule
+    (agent/tools/stats_verdict.classify), plus the CAPA-specific context and the
+    three-window (before / immediately-after / recent) breakdown documented in
+    capa_check.py's module docstring.
+
+    `p_value`/`effect_value`/`effect` carry whichever comparison decided `verdict`:
+    before-vs-immediate for `never_worked`, before-vs-recent for `worked` and
+    `regressed`. `p_immediate`/`p_recent` are always both present (when not
+    `insufficient_data`) so nothing is hidden behind the headline number.
+    """
+    capa_id: str
+    defect_type: str
+    line: str
+    implemented_on: str
+    verdict: CapaVerdict
+    test: str = "Welch t-test"
+    p_value: float | None = None
+    effect: str = ""
+    effect_value: float | None = None
+    effect_unit: str = "defect rate"
+    n_before: int = 0
+    n_immediate: int = 0
+    n_recent: int = 0
+    group_labels: list[str] = Field(default_factory=list)
+    before_rate: float | None = None
+    immediate_rate: float | None = None
+    recent_rate: float | None = None
+    p_immediate: float | None = None
+    p_recent: float | None = None
     chart_url: str | None = None
 
 
