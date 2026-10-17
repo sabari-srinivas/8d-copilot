@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { approve, getInvestigationReady } from "../api/client";
@@ -128,7 +129,7 @@ export function Review() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-3xl">
+    <div className="flex flex-col gap-4 max-w-3xl">
       <BackNav investigationId={id} />
       <div>
         <h1 className="text-lg font-semibold">Review 8D</h1>
@@ -139,8 +140,13 @@ export function Review() {
       </div>
 
       {insufficientEvidence && (
-        <div className="card p-4 flex flex-col gap-2" style={{ borderColor: "var(--amber)" }} role="alert">
-          <p className="text-sm font-semibold" style={{ color: "var(--amber)" }}>
+        <div
+          className="card p-3 flex flex-col gap-2"
+          style={{ borderColor: "var(--amber)", background: "var(--amber-soft)" }}
+          role="alert"
+        >
+          <p className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--amber-ink)" }}>
+            <AlertTriangle size={14} aria-hidden="true" />
             This draft needs more data before it can be approved
           </p>
           {inv.missing_data.length > 0 ? (
@@ -156,7 +162,7 @@ export function Review() {
       )}
 
       {inv.eight_d && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {SECTIONS.map((s, i) => (
             <EightDSection
               key={s.id}
@@ -173,7 +179,7 @@ export function Review() {
 
       <div>
         <h2 className="text-sm font-semibold mb-2">Proposed actions</h2>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           {inv.proposed_actions.map((a) => (
             <ActionToggle
               key={a.id}
@@ -194,7 +200,7 @@ export function Review() {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={2}
-          className="w-full resize-y rounded-lg border p-3 text-sm bg-transparent"
+          className="w-full resize-y rounded-md border p-2.5 text-sm bg-transparent"
           style={{ borderColor: "var(--line)" }}
         />
       </div>
@@ -210,7 +216,7 @@ export function Review() {
           type="button"
           onClick={onApprove}
           disabled={submitting}
-          className="tap-target rounded-lg px-5 text-sm font-semibold text-white disabled:opacity-60 w-fit"
+          className="tap-target rounded-md px-5 text-sm font-semibold text-[var(--pill-fg-strong)] disabled:opacity-60 w-fit transition-opacity hover:opacity-90"
           style={{ background: "var(--green)" }}
         >
           {submitting ? "Approving…" : "Approve 8D"}

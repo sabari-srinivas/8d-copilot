@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getInvestigationReady, resolveApiUrl } from "../api/client";
@@ -48,7 +49,7 @@ export function Evidence() {
   const chartUrl = resolveApiUrl(inv.chart_url);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <BackNav investigationId={id} />
       <h1 className="text-lg font-semibold">Evidence</h1>
 
@@ -57,17 +58,21 @@ export function Evidence() {
         <p className="mb-2">
           <ProvenanceTag tone="computed">Computed from lot data</ProvenanceTag>
         </p>
-        {chartUrl && !chartFailed ? (
-          <img
-            src={chartUrl}
-            alt="Chart comparing reflow peak temperature in defect lots versus good lots on Line 2, showing defect lots running hotter after work order WO-388."
-            className="w-full rounded-xl border"
-            style={{ borderColor: "var(--line)" }}
-            onError={() => setChartFailed(true)}
-          />
-        ) : (
-          <TempChart rows={inv.traveler_rows} holdLots={inv.hold_lots} />
-        )}
+        <div className="card p-3" style={{ background: "var(--surface-sunken)" }}>
+          {chartUrl && !chartFailed ? (
+            <img
+              src={chartUrl}
+              alt="Chart comparing reflow peak temperature in defect lots versus good lots on Line 2, showing defect lots running hotter after work order WO-388."
+              className="w-full rounded-md border"
+              style={{ borderColor: "var(--line)", background: "var(--card)" }}
+              onError={() => setChartFailed(true)}
+            />
+          ) : (
+            <div className="rounded-md border p-2" style={{ borderColor: "var(--line)", background: "var(--card)" }}>
+              <TempChart rows={inv.traveler_rows} holdLots={inv.hold_lots} />
+            </div>
+          )}
+        </div>
       </section>
 
       <section>
@@ -76,27 +81,27 @@ export function Evidence() {
           <ProvenanceTag tone="computed">Computed from lot data — not AI</ProvenanceTag>
         </p>
         <div className="overflow-x-auto card">
-          <table className="w-full text-sm">
+          <table className="table-dense">
             <thead>
-              <tr className="text-left border-b" style={{ borderColor: "var(--line)" }}>
-                <th className="p-3 font-medium">Hypothesis</th>
-                <th className="p-3 font-medium">Test</th>
-                <th className="p-3 font-medium mono">p-value</th>
-                <th className="p-3 font-medium">Effect</th>
-                <th className="p-3 font-medium mono">n (defect / good)</th>
+              <tr>
+                <th>Hypothesis</th>
+                <th>Test</th>
+                <th>p-value</th>
+                <th>Effect</th>
+                <th>n (defect / good)</th>
               </tr>
             </thead>
             <tbody>
               {inv.results.map((r) => (
-                <tr key={r.hypothesis_id} className="border-b last:border-0" style={{ borderColor: "var(--line)" }}>
-                  <td className="p-3 align-top">
+                <tr key={r.hypothesis_id}>
+                  <td>
                     <span className="mono text-xs opacity-60">{r.hypothesis_id}</span>
                     <p className="max-w-xs">{hypothesisText(r.hypothesis_id)}</p>
                   </td>
-                  <td className="p-3 align-top whitespace-nowrap">{r.test}</td>
-                  <td className="p-3 align-top mono whitespace-nowrap">{formatPValue(r.p_value)}</td>
-                  <td className="p-3 align-top mono whitespace-nowrap">{r.effect}</td>
-                  <td className="p-3 align-top mono whitespace-nowrap">
+                  <td className="whitespace-nowrap">{r.test}</td>
+                  <td className="mono whitespace-nowrap">{formatPValue(r.p_value)}</td>
+                  <td className="mono whitespace-nowrap">{r.effect}</td>
+                  <td className="mono whitespace-nowrap">
                     {r.n_defect} / {r.n_good}
                   </td>
                 </tr>
@@ -114,13 +119,17 @@ export function Evidence() {
               AI — Gemini multimodal audio, heard in {inv.voice_note.language_name || "an unidentified language"}
             </ProvenanceTag>
           </p>
-          <div className="card p-4 flex flex-col gap-3 text-sm">
+          <div className="card p-3 flex flex-col gap-2.5 text-sm">
             {inv.voice_note.lot_or_line && (
               <p>
                 <span className="opacity-60">Referring to: </span>
                 <span className="mono">{inv.voice_note.lot_or_line}</span>
                 {inv.voice_note.low_confidence_fields.includes("lot_or_line") && (
-                  <span className="ml-2 text-xs font-medium" style={{ color: "var(--amber)" }}>
+                  <span
+                    className="ml-2 inline-flex items-center gap-1 text-xs font-medium"
+                    style={{ color: "var(--amber-ink)" }}
+                  >
+                    <AlertTriangle size={11} aria-hidden="true" />
                     unclear — confirm before relying on this
                   </span>
                 )}
@@ -136,7 +145,8 @@ export function Evidence() {
                   ))}
                 </ul>
                 {inv.voice_note.low_confidence_fields.includes("observations") && (
-                  <p className="text-xs mt-1" style={{ color: "var(--amber)" }}>
+                  <p className="inline-flex items-center gap-1 text-xs mt-1" style={{ color: "var(--amber-ink)" }}>
+                    <AlertTriangle size={11} aria-hidden="true" />
                     Flagged — not fully confident in this transcription.
                   </p>
                 )}
@@ -152,7 +162,8 @@ export function Evidence() {
                   ))}
                 </ul>
                 {inv.voice_note.low_confidence_fields.includes("maintenance_mentions") && (
-                  <p className="text-xs mt-1" style={{ color: "var(--amber)" }}>
+                  <p className="inline-flex items-center gap-1 text-xs mt-1" style={{ color: "var(--amber-ink)" }}>
+                    <AlertTriangle size={11} aria-hidden="true" />
                     Flagged — not fully confident in this transcription.
                   </p>
                 )}

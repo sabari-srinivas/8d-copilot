@@ -67,7 +67,7 @@ export function DefectPhoto({
         <figcaption className="mt-2 flex flex-wrap items-center gap-2">
           <span
             className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-white mono"
-            style={{ background: "var(--ink)" }}
+            style={{ background: "var(--chip-strong-bg)" }}
           >
             {humanize(defect.type)} · {humanize(defect.severity)} ·{" "}
             {Math.round(defect.confidence * 100)}%

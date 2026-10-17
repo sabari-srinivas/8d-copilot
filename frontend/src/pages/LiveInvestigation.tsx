@@ -1,3 +1,4 @@
+import { AlertTriangle, CircleDot } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getInvestigation, resolveApiUrl } from "../api/client";
@@ -10,13 +11,17 @@ import { Timeline } from "../components/Timeline";
 
 function ReconnectingBanner() {
   return (
-    <div className="card p-3 flex items-center gap-2 text-sm" role="status" style={{ borderColor: "var(--amber)" }}>
+    <div
+      className="card p-2.5 flex items-center gap-2 text-sm"
+      role="status"
+      style={{ borderColor: "var(--amber)", background: "var(--amber-soft)" }}
+    >
       <span
-        className="inline-block h-2 w-2 rounded-full animate-pulse"
+        className="inline-block h-2 w-2 rounded-full animate-pulse shrink-0"
         style={{ background: "var(--amber)" }}
         aria-hidden="true"
       />
-      <span style={{ color: "var(--amber)" }}>Reconnecting to the investigation…</span>
+      <span style={{ color: "var(--amber-ink)" }}>Reconnecting to the investigation…</span>
     </div>
   );
 }
@@ -24,8 +29,13 @@ function ReconnectingBanner() {
 function WarningsNote({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null;
   return (
-    <div className="card p-3 flex flex-col gap-1 text-xs" style={{ borderColor: "var(--amber)" }} role="note">
-      <p className="font-semibold" style={{ color: "var(--amber)" }}>
+    <div
+      className="card p-3 flex flex-col gap-1 text-xs"
+      style={{ borderColor: "var(--amber)", background: "var(--amber-soft)" }}
+      role="note"
+    >
+      <p className="flex items-center gap-1.5 font-semibold" style={{ color: "var(--amber-ink)" }}>
+        <AlertTriangle size={13} aria-hidden="true" />
         Provenance check flagged a number in the draft
       </p>
       {warnings.map((w, i) => (
@@ -52,7 +62,11 @@ function StatusBanner({
 }) {
   if (status === "failed") {
     return (
-      <div className="card p-4 flex flex-col gap-1" style={{ borderColor: "var(--red)" }} role="alert">
+      <div
+        className="card p-3 flex flex-col gap-1"
+        style={{ borderColor: "var(--red)", background: "var(--red-soft)" }}
+        role="alert"
+      >
         <p className="text-sm font-semibold" style={{ color: "var(--red)" }}>
           The investigation could not finish
         </p>
@@ -64,7 +78,7 @@ function StatusBanner({
   }
   if (status === "draft_ready" || status === "insufficient_evidence") {
     return (
-      <div className="card p-4 flex items-center justify-between gap-3 flex-wrap">
+      <div className="card p-3 flex items-center justify-between gap-3 flex-wrap">
         <p className="text-sm font-medium">
           {status === "draft_ready"
             ? "8D draft is ready for review."
@@ -74,7 +88,7 @@ function StatusBanner({
           <button
             type="button"
             onClick={onEvidence}
-            className="tap-target rounded-lg px-4 text-sm font-semibold border"
+            className="tap-target rounded-md px-4 text-sm font-semibold border transition-colors hover:bg-[var(--surface-hover)]"
             style={{ borderColor: "var(--line)" }}
           >
             See the evidence
@@ -82,7 +96,7 @@ function StatusBanner({
           <button
             type="button"
             onClick={onReview}
-            className="tap-target rounded-lg px-4 text-sm font-semibold text-white"
+            className="tap-target rounded-md px-4 text-sm font-semibold text-[var(--pill-fg-strong)]"
             style={{ background: "var(--green)" }}
           >
             {status === "draft_ready" ? "Review 8D" : "Review"}
@@ -93,8 +107,8 @@ function StatusBanner({
   }
   const inFlight = isInFlight(events);
   return (
-    <div className="card p-4 flex items-center gap-2 text-sm" role="status" aria-live="polite">
-      <span className="inline-block h-2 w-2 rounded-full animate-pulse shrink-0" style={{ background: "var(--green)" }} aria-hidden="true" />
+    <div className="card p-3 flex items-center gap-2 text-sm" role="status" aria-live="polite">
+      <CircleDot size={14} className="shrink-0 animate-pulse" style={{ color: "var(--green)" }} aria-hidden="true" />
       {inFlight ? workingLabel(inFlight) : "Investigation in progress…"}
     </div>
   );
@@ -115,7 +129,7 @@ export function LiveInvestigation() {
   }, [id]);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-lg font-semibold">
           Investigation <span className="mono text-base opacity-70">{id}</span>
@@ -134,12 +148,16 @@ export function LiveInvestigation() {
 
       <WarningsNote warnings={stream.warnings} />
 
-      <div className="grid lg:grid-cols-[2fr_1fr] gap-6 items-start">
-        <div className="flex flex-col gap-4 min-w-0">
+      <div className="grid lg:grid-cols-[2fr_1fr] gap-4 items-start">
+        <div className="flex flex-col gap-3 min-w-0">
           <DefectPhoto photoUrl={photoUrl} defect={stream.defect} />
 
           {stream.memoryHits.map((hit) => (
-            <div key={hit.id} className="card p-4 flex flex-col gap-1" style={{ borderColor: "var(--green)" }}>
+            <div
+              key={hit.id}
+              className="card p-3 flex flex-col gap-1"
+              style={{ borderColor: "var(--green)", background: "var(--green-soft)" }}
+            >
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--green-ink)" }}>
                 Similar past case found
               </p>
@@ -150,11 +168,11 @@ export function LiveInvestigation() {
             </div>
           ))}
 
-          <h2 className="text-sm font-semibold opacity-80 mt-2">Hypotheses</h2>
+          <h2 className="text-sm font-semibold opacity-80 mt-1">Hypotheses</h2>
           {stream.hypotheses.length === 0 ? (
             <p className="text-sm opacity-60">Waiting for the investigator to propose hypotheses…</p>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {stream.hypotheses.map((h) => (
                 <HypothesisCard
                   key={h.id}
@@ -168,7 +186,7 @@ export function LiveInvestigation() {
 
         <aside className="min-w-0">
           <h2 className="text-sm font-semibold opacity-80 mb-2">Agent trace</h2>
-          <div className="card p-3 max-h-[70vh] overflow-y-auto">
+          <div className="card p-2.5 max-h-[70vh] overflow-y-auto" style={{ background: "var(--surface-sunken)" }}>
             <Timeline events={stream.events} done={stream.done} />
           </div>
         </aside>

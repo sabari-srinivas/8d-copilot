@@ -1,3 +1,4 @@
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { createInvestigation, listComplaints } from "../api/client";
@@ -32,7 +33,7 @@ function AdjacentComplaintNav({
           className="tap-target inline-flex items-center gap-1 font-medium underline shrink-0 whitespace-nowrap"
           style={{ color: "var(--green)" }}
         >
-          ← {prev.customer}
+          <ArrowLeft size={14} aria-hidden="true" /> {prev.customer}
         </Link>
       ) : (
         <span />
@@ -46,7 +47,7 @@ function AdjacentComplaintNav({
           className="tap-target inline-flex items-center gap-1 font-medium underline shrink-0 whitespace-nowrap"
           style={{ color: "var(--green)" }}
         >
-          {next.customer} →
+          {next.customer} <ArrowRight size={14} aria-hidden="true" />
         </Link>
       )}
     </nav>
@@ -124,7 +125,7 @@ export function NewInvestigation() {
       </h1>
       <p className="text-sm opacity-70 mb-1">
         Complaint <span className="mono">{complaintId}</span>
-        {complaint ? ` · lot ${complaint.lot_id}` : ""}
+        {complaint ? <> · lot <span className="mono">{complaint.lot_id}</span></> : ""}
       </p>
       {complaint?.is_rejection && (
         <p
@@ -136,12 +137,12 @@ export function NewInvestigation() {
           {complaint.objection && <> Objection: &ldquo;{complaint.objection}&rdquo;</>}
         </p>
       )}
-      <p className="text-sm opacity-70 mb-6">
+      <p className="text-sm opacity-70 mb-5">
         Photograph the returned board and confirm the lot before starting the
         investigation.
       </p>
 
-      <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-5">
+      <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-4">
         <div>
           <label htmlFor="image" className="block text-sm font-medium mb-1">
             Defect photo
@@ -154,7 +155,7 @@ export function NewInvestigation() {
             capture="environment"
             required
             onChange={(e) => setImageName(e.target.files?.[0]?.name ?? "")}
-            className="tap-target w-full rounded-lg border p-2 text-sm file:mr-3 file:tap-target file:rounded-md file:border-0 file:px-3 file:text-sm file:font-medium file:text-white file:bg-[var(--green)]"
+            className="tap-target w-full rounded-lg border p-2 text-sm file:mr-3 file:tap-target file:rounded-md file:border-0 file:px-3 file:text-sm file:font-medium file:text-[var(--pill-fg-strong)] file:bg-[var(--green)]"
             style={{ borderColor: "var(--line)" }}
           />
           <p className="text-xs opacity-60 mt-1" aria-live="polite">
@@ -200,7 +201,7 @@ export function NewInvestigation() {
             type="file"
             accept=".xlsx"
             onChange={(e) => setTravelerName(e.target.files?.[0]?.name ?? "")}
-            className="tap-target w-full rounded-lg border p-2 text-sm file:mr-3 file:tap-target file:rounded-md file:border-0 file:px-3 file:text-sm file:font-medium file:text-white file:bg-[var(--green)]"
+            className="tap-target w-full rounded-lg border p-2 text-sm file:mr-3 file:tap-target file:rounded-md file:border-0 file:px-3 file:text-sm file:font-medium file:text-[var(--pill-fg-strong)] file:bg-[var(--green)]"
             style={{ borderColor: "var(--line)" }}
           />
           {travelerName && <p className="text-xs opacity-60 mt-1">Selected: {travelerName}</p>}
@@ -216,7 +217,7 @@ export function NewInvestigation() {
             type="file"
             accept="audio/*"
             onChange={(e) => setVoiceNoteName(e.target.files?.[0]?.name ?? "")}
-            className="tap-target w-full rounded-lg border p-2 text-sm file:mr-3 file:tap-target file:rounded-md file:border-0 file:px-3 file:text-sm file:font-medium file:text-white file:bg-[var(--green)]"
+            className="tap-target w-full rounded-lg border p-2 text-sm file:mr-3 file:tap-target file:rounded-md file:border-0 file:px-3 file:text-sm file:font-medium file:text-[var(--pill-fg-strong)] file:bg-[var(--green)]"
             style={{ borderColor: "var(--line)" }}
           />
           <p className="text-xs opacity-60 mt-1" aria-live="polite">
@@ -235,7 +236,7 @@ export function NewInvestigation() {
         <button
           type="submit"
           disabled={submitting}
-          className="tap-target rounded-lg px-5 text-sm font-semibold text-white disabled:opacity-60"
+          className="tap-target rounded-lg px-5 text-sm font-semibold text-[var(--pill-fg-strong)] disabled:opacity-60"
           style={{ background: "var(--green)" }}
         >
           {submitting ? "Starting…" : "Start investigation"}

@@ -1,3 +1,4 @@
+import { Inbox as InboxIcon, History, Database as MemoryIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { getHealth } from "../api/client";
@@ -9,7 +10,7 @@ import { getHealth } from "../api/client";
 const NAV_ITEMS = [
   { to: "/", label: "Inbox", icon: InboxIcon },
   { to: "/memory", label: "Memory", icon: MemoryIcon },
-];
+] as const;
 
 /** Carries the §7 header and footer on every screen: a sidebar nav above 768px,
  * a bottom tab bar below it. One shell, one place that knows the plant name and
@@ -42,11 +43,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       </a>
 
       <header
-        className="sticky top-0 z-20 flex items-center gap-3 px-4 h-14 border-b shrink-0"
+        className="sticky top-0 z-20 flex items-center gap-3 px-4 h-12 border-b shrink-0"
         style={{ borderColor: "var(--line)", background: "var(--paper)" }}
       >
         <span
-          className="grid place-items-center h-8 w-8 rounded-lg text-white text-xs font-bold shrink-0"
+          className="mono grid place-items-center h-7 w-7 rounded-md text-[var(--pill-fg-strong)] text-[11px] font-bold shrink-0"
           style={{ background: "var(--green)" }}
           aria-hidden="true"
         >
@@ -57,17 +58,18 @@ export function AppShell({ children }: { children: ReactNode }) {
         </span>
         {replayCase && (
           <span
-            className="shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium"
-            style={{ borderColor: "var(--amber)", color: "var(--amber)" }}
+            className="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
+            style={{ borderColor: "var(--amber)", color: "var(--amber-ink)" }}
             title={`Replaying the recorded run "${replayCase}" — no model calls`}
           >
+            <History size={12} aria-hidden="true" />
             Replay
           </span>
         )}
         <span className="ml-auto flex items-center gap-2 text-sm shrink-0">
-          <span className="hidden sm:inline">Priya R. · Quality Engineer</span>
+          <span className="hidden sm:inline opacity-80">Priya R. · Quality Engineer</span>
           <span
-            className="grid place-items-center h-8 w-8 rounded-full text-white text-xs font-semibold"
+            className="grid place-items-center h-7 w-7 rounded-full text-[var(--pill-fg-strong)] text-[11px] font-semibold"
             style={{ background: "var(--green)" }}
             aria-hidden="true"
           >
@@ -80,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex-1 flex w-full">
         <nav
           aria-label="Primary"
-          className="hidden md:flex flex-col gap-1 w-56 shrink-0 border-r px-3 py-4"
+          className="hidden md:flex flex-col gap-0.5 w-52 shrink-0 border-r px-2 py-3"
           style={{ borderColor: "var(--line)" }}
         >
           {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
@@ -89,27 +91,27 @@ export function AppShell({ children }: { children: ReactNode }) {
               to={to}
               end={to === "/"}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 h-11 text-sm font-medium transition-colors ${
-                  isActive ? "text-white" : "opacity-80 hover:opacity-100"
+                `flex items-center gap-2.5 rounded-md px-3 h-10 text-sm font-medium transition-colors ${
+                  isActive ? "text-[var(--pill-fg-strong)]" : "opacity-75 hover:opacity-100 hover:bg-[var(--surface-hover)]"
                 }`
               }
               style={({ isActive }) => ({
                 background: isActive ? "var(--green)" : "transparent",
               })}
             >
-              <Icon />
+              <Icon size={17} aria-hidden="true" />
               {label}
             </NavLink>
           ))}
         </nav>
 
-        <main id="main" className="flex-1 min-w-0 px-4 py-5 max-w-[1280px] w-full mx-auto">
+        <main id="main" className="flex-1 min-w-0 px-3 py-4 max-w-[1280px] w-full mx-auto">
           {children}
         </main>
       </div>
 
       <footer
-        className="px-4 py-2 text-[11px] opacity-50 border-t shrink-0"
+        className="px-4 py-1.5 text-[11px] opacity-50 border-t shrink-0"
         style={{ borderColor: "var(--line)" }}
       >
         Synthetic demo data · Built with Gemini on Google Cloud
@@ -132,38 +134,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             }
             style={({ isActive }) => ({ color: isActive ? "var(--green)" : undefined })}
           >
-            <Icon />
+            <Icon size={19} aria-hidden="true" />
             {label}
           </NavLink>
         ))}
       </nav>
     </div>
-  );
-}
-
-function InboxIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M3 13h5l1.5 3h5L16 13h5M4 13l1.6-6.4A2 2 0 0 1 7.5 5h9a2 2 0 0 1 1.9 1.6L20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function MemoryIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M4 19.5V6a2 2 0 0 1 2-2h12.5v15.5M6 4v15.5M6 19.5h12.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

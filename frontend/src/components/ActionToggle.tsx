@@ -19,11 +19,11 @@ export function ActionToggle({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="card p-3 flex items-center gap-3">
+    <div className="card card-interactive p-2.5 flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <span
           className="text-[11px] font-semibold uppercase tracking-wide opacity-60 rounded px-1.5 py-0.5 mr-2"
-          style={{ background: "var(--line)" }}
+          style={{ background: "var(--surface-sunken)" }}
         >
           {KIND_LABEL[action.kind]}
         </span>

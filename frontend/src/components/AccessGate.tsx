@@ -46,8 +46,8 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
     >
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-xl border p-6 flex flex-col gap-4"
-        style={{ background: "var(--card)", borderColor: "var(--line)" }}
+        className="w-full max-w-sm rounded-lg border p-6 flex flex-col gap-4"
+        style={{ background: "var(--card)", borderColor: "var(--line)", boxShadow: "var(--shadow-md)" }}
       >
         <div>
           <h1 className="text-lg font-semibold">8D Copilot</h1>
@@ -75,7 +75,7 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
         <button
           type="submit"
           disabled={checking || !code}
-          className="rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded-md px-4 py-2 text-sm font-semibold text-[var(--pill-fg-strong)] disabled:opacity-50"
           style={{ background: "var(--green)" }}
         >
           {checking ? "Checking…" : "Continue"}

@@ -30,14 +30,19 @@ export function EightDSection({
 
   return (
     <details className="card p-0 overflow-hidden" open={defaultOpen}>
-      <summary className="tap-target flex items-center gap-2 px-4 cursor-pointer list-none font-semibold text-sm flex-wrap">
-        <span className="mono text-xs opacity-60">{id}</span>
+      <summary className="tap-target flex items-center gap-2 px-3 cursor-pointer list-none font-semibold text-sm flex-wrap transition-colors hover:bg-[var(--surface-hover)]">
+        <span
+          className="mono text-xs font-bold rounded px-1.5 py-0.5"
+          style={{ background: "var(--surface-sunken)", color: "var(--green-ink)" }}
+        >
+          {id}
+        </span>
         {label}
         <span className="ml-auto font-normal">
           <ProvenanceTag tone="ai">AI-drafted · edit before approving</ProvenanceTag>
         </span>
       </summary>
-      <div className="px-4 pb-4 flex flex-col gap-3">
+      <div className="px-3 pb-3 flex flex-col gap-2.5">
         <label htmlFor={`${id}-text`} className="sr-only">
           {id}: {label}
         </label>
@@ -53,7 +58,7 @@ export function EightDSection({
             autoGrow(e.target);
           }}
           rows={2}
-          className="w-full resize-none rounded-lg border p-3 text-sm leading-relaxed bg-transparent"
+          className="w-full resize-none rounded-md border p-2.5 text-sm leading-relaxed bg-transparent"
           style={{ borderColor: "var(--line)" }}
         />
         {citations.length > 0 && (

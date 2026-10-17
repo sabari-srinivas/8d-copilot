@@ -1,3 +1,4 @@
+import { ArrowLeft, Inbox as InboxIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 /** CR #3: Evidence, Review and Done had no way out except the browser back button
@@ -5,17 +6,19 @@ import { Link } from "react-router-dom";
  * investigation trace, plus a route straight home to the inbox. */
 export function BackNav({ investigationId }: { investigationId: string | undefined }) {
   return (
-    <nav aria-label="Back" className="flex items-center gap-4 text-sm mb-4">
+    <nav aria-label="Back" className="flex items-center gap-4 text-sm mb-3">
       {investigationId && (
         <Link
           to={`/inv/${investigationId}`}
           className="tap-target inline-flex items-center gap-1 font-medium underline"
           style={{ color: "var(--green)" }}
         >
-          ← Back to investigation
+          <ArrowLeft size={15} aria-hidden="true" />
+          Back to investigation
         </Link>
       )}
       <Link to="/" className="tap-target inline-flex items-center gap-1 opacity-70 underline">
+        <InboxIcon size={15} aria-hidden="true" />
         Inbox
       </Link>
     </nav>

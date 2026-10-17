@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { prettySource } from "../api/capability";
 import type { Citation } from "../api/types";
@@ -44,10 +45,10 @@ export function CitationSheet({
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="tap-target shrink-0 grid place-items-center rounded-full text-sm opacity-70 hover:opacity-100"
+            className="tap-target shrink-0 grid place-items-center rounded-full text-sm opacity-70 hover:opacity-100 transition-opacity"
             aria-label="Close citation"
           >
-            ✕
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
         <p className="mt-3">

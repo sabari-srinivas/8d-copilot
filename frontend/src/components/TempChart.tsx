@@ -16,6 +16,16 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 const SPEC_LOW = 235;
 const SPEC_HIGH = 250;
 
+/** Reads a colour token straight off the page at render time, so the chart — which
+ * Chart.js draws on a <canvas>, outside the CSS cascade — still follows the same
+ * CSS-variable tokens as everything else instead of a hardcoded hex fallback baked in
+ * for one theme. Falls back only if the variable is somehow unset. */
+function cssVar(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
 /** Client-rendered fallback for the reflow peak temperature chart, built from the
  * traveler rows already on the investigation — used when the backend-rendered
  * chart image (chart_url) can't be reached, e.g. in mock mode with no API running. */
@@ -24,15 +34,19 @@ export function TempChart({ rows, holdLots }: { rows: TravelerRow[]; holdLots: s
   const values = sorted.map((r) => r.reflow_peak_temp_c ?? 0);
   const isDefect = sorted.map((r) => holdLots.includes(r.lot_id));
 
+  const red = cssVar("--red", "#a6281f");
+  const green = cssVar("--green", "#1b5e3f");
+  const ink = cssVar("--ink", "#16211c");
+  const line = cssVar("--line", "#e2e8e4");
+  const monoFont = { family: "Fira Code, ui-monospace, monospace" };
+
   const data: ChartData<"bar"> = {
     labels: sorted.map((r) => r.lot_id),
     datasets: [
       {
         label: "Reflow peak temperature (°C)",
         data: values,
-        backgroundColor: isDefect.map((d) =>
-          d ? "rgba(166, 40, 31, 0.75)" : "rgba(27, 94, 63, 0.6)",
-        ),
+        backgroundColor: isDefect.map((d) => (d ? red : green)),
         borderRadius: 3,
       },
     ],
@@ -44,6 +58,8 @@ export function TempChart({ rows, holdLots }: { rows: TravelerRow[]; holdLots: s
     plugins: {
       legend: { display: false },
       tooltip: {
+        titleFont: monoFont,
+        bodyFont: monoFont,
         callbacks: {
           label: (ctx) => `${ctx.label}: ${(ctx.parsed.y ?? 0).toFixed(1)} °C${
             isDefect[ctx.dataIndex] ? " (hold lot)" : ""
@@ -52,8 +68,14 @@ export function TempChart({ rows, holdLots }: { rows: TravelerRow[]; holdLots: s
       },
     },
     scales: {
+      x: {
+        ticks: { color: ink, font: monoFont },
+        grid: { color: line },
+      },
       y: {
-        title: { display: true, text: "°C" },
+        title: { display: true, text: "°C", color: ink },
+        ticks: { color: ink, font: monoFont },
+        grid: { color: line },
         suggestedMin: Math.min(SPEC_LOW - 5, ...values),
         suggestedMax: Math.max(SPEC_HIGH + 5, ...values),
       },

@@ -1,3 +1,4 @@
+import { CheckCircle2, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { getInvestigation } from "../api/client";
@@ -9,8 +10,8 @@ type DoneState = { result: ApproveResult; note: string } | undefined;
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="card p-4 flex flex-col gap-2">
-      <h2 className="text-sm font-semibold opacity-80">{title}</h2>
+    <section className="card p-3 flex flex-col gap-1.5">
+      <h2 className="stat-label">{title}</h2>
       {children}
     </section>
   );
@@ -67,10 +68,13 @@ export function Done() {
   }
 
   return (
-    <div className="flex flex-col gap-5 max-w-2xl">
+    <div className="flex flex-col gap-4 max-w-2xl">
       <BackNav investigationId={id} />
       <div>
-        <h1 className="text-lg font-semibold">8D approved by Priya R.</h1>
+        <h1 className="flex items-center gap-2 text-lg font-semibold">
+          <CheckCircle2 size={18} style={{ color: "var(--green)" }} aria-hidden="true" />
+          8D approved by Priya R.
+        </h1>
         <p className="text-sm opacity-70">
           Investigation <span className="mono">{id}</span>
           {confirmedCause && <> · confirmed cause: {confirmedCause}</>}
@@ -78,7 +82,7 @@ export function Done() {
       </div>
 
       {!state && (
-        <div className="card p-4 text-sm" role="status">
+        <div className="card p-3 text-sm" role="status">
           This page was opened directly, so the records created at approval time aren't
           available here — they're only returned once, by the approval call itself. The
           investigation's own status below still reflects the approval.
@@ -133,7 +137,7 @@ export function Done() {
             {state.result.replies ? (
               <>
                 <ProvenanceTag tone="ai">AI-drafted</ProvenanceTag>
-                <div className="flex gap-1 w-fit rounded-lg border p-1" style={{ borderColor: "var(--line)" }} role="tablist" aria-label="Reply language">
+                <div className="flex gap-1 w-fit rounded-md border p-1" style={{ borderColor: "var(--line)" }} role="tablist" aria-label="Reply language">
                   {(["ja", "en"] as const).map((l) => (
                     <button
                       key={l}
@@ -141,25 +145,26 @@ export function Done() {
                       role="tab"
                       aria-selected={lang === l}
                       onClick={() => setLang(l)}
-                      className="tap-target rounded-md px-3 text-sm font-medium"
+                      className="tap-target rounded-md px-3 text-sm font-medium transition-colors"
                       style={{
                         background: lang === l ? "var(--green)" : "transparent",
-                        color: lang === l ? "white" : "inherit",
+                        color: lang === l ? "var(--pill-fg-strong)" : "inherit",
                       }}
                     >
                       {l === "ja" ? "日本語" : "English"}
                     </button>
                   ))}
                 </div>
-                <pre className="whitespace-pre-wrap text-sm rounded-lg border p-3 mt-2" style={{ borderColor: "var(--line)" }}>
+                <pre className="whitespace-pre-wrap text-sm rounded-md border p-3 mt-2" style={{ borderColor: "var(--line)" }}>
                   {state.result.replies[lang]}
                 </pre>
                 <button
                   type="button"
                   onClick={copyReply}
-                  className="tap-target rounded-lg px-4 text-sm font-semibold w-fit border"
+                  className="tap-target inline-flex items-center gap-1.5 rounded-md px-4 text-sm font-semibold w-fit border transition-colors hover:bg-[var(--surface-hover)]"
                   style={{ borderColor: "var(--line)" }}
                 >
+                  <Copy size={14} aria-hidden="true" />
                   {copied ? "Copied" : "Copy"}
                 </button>
               </>

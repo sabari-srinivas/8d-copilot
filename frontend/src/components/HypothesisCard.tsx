@@ -1,4 +1,4 @@
-import type { Hypothesis, HypothesisResult } from "../api/types";
+import type { Hypothesis, HypothesisResult, Verdict } from "../api/types";
 import { ProvenanceTag } from "./ProvenanceTag";
 import { VerdictPill } from "./VerdictPill";
 
@@ -6,6 +6,14 @@ function formatPValue(p: number): string {
   if (p < 0.0001) return "< 0.0001";
   return `p = ${p.toFixed(4)}`;
 }
+
+// A quiet left rail matching the verdict colour — reinforcement only, the pill above
+// still spells the verdict out in words every time (PRD §13: never colour alone).
+const RAIL_COLOR: Record<Verdict, string> = {
+  supported: "var(--green)",
+  rejected: "var(--grey)",
+  inconclusive: "var(--amber)",
+};
 
 /** One hypothesis, tested or still being tested. Rejected and inconclusive results
  * stay on screen exactly like supported ones — this card never disappears once it
@@ -19,11 +27,12 @@ export function HypothesisCard({
 }) {
   return (
     <article
-      className="card p-4 flex flex-col gap-2"
+      className="card p-3 flex flex-col gap-1.5"
+      style={result ? { borderLeft: `3px solid ${RAIL_COLOR[result.verdict]}` } : undefined}
       aria-label={`Hypothesis ${hypothesis.id}: ${result ? result.verdict : "testing"}`}
     >
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="text-xs font-semibold uppercase tracking-wide opacity-60 mono">
+        <span className="mono text-xs font-semibold uppercase tracking-wide opacity-60">
           {hypothesis.id} · {hypothesis.category}
         </span>
         {result ? (
@@ -31,7 +40,7 @@ export function HypothesisCard({
         ) : (
           <span
             className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
-            style={{ background: "var(--line)" }}
+            style={{ background: "var(--surface-sunken)" }}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "var(--ink)" }} aria-hidden="true" />
             Testing…
@@ -56,22 +65,25 @@ export function HypothesisCard({
       )}
 
       {result && (
-        <dl className="mt-1 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-xs mono">
+        <dl
+          className="mt-1 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-sm pt-1.5 border-t"
+          style={{ borderColor: "var(--line)" }}
+        >
           <div>
-            <dt className="opacity-60 font-sans text-[11px]">Test</dt>
-            <dd>{result.test}</dd>
+            <dt className="stat-label">Test</dt>
+            <dd className="mono">{result.test}</dd>
           </div>
           <div>
-            <dt className="opacity-60 font-sans text-[11px]">p-value</dt>
-            <dd>{formatPValue(result.p_value)}</dd>
+            <dt className="stat-label">p-value</dt>
+            <dd className="mono">{formatPValue(result.p_value)}</dd>
           </div>
           <div>
-            <dt className="opacity-60 font-sans text-[11px]">Effect</dt>
-            <dd>{result.effect}</dd>
+            <dt className="stat-label">Effect</dt>
+            <dd className="mono">{result.effect}</dd>
           </div>
           <div>
-            <dt className="opacity-60 font-sans text-[11px]">n (defect vs good)</dt>
-            <dd>{result.n_defect} vs {result.n_good}</dd>
+            <dt className="stat-label">n (defect vs good)</dt>
+            <dd className="mono">{result.n_defect} vs {result.n_good}</dd>
           </div>
         </dl>
       )}
