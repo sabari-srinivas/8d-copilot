@@ -82,7 +82,7 @@ plausible-looking decoys.
 ```
 React (Vite + TypeScript) + SSE
         │
-FastAPI + Google ADK agents (Python 3.12)
+FastAPI with hand-written Gemini agents (Python 3.12)
    │          │            │            │
    ▼          ▼            ▼            ▼
 Gemini    BigQuery     Firestore   Cloud Storage
@@ -99,6 +99,12 @@ Vertex AI RAG Engine (PFMEA, control plan, past 8Ds)
 One agent per pipeline stage — intake, vision, investigator, evidence, writer, and a
 post-approval actions step — each publishing events over an SSE stream the UI renders
 live. Every stage that calls Gemini uses structured output validated with Pydantic.
+
+**Not built on Google ADK.** Each agent is a plain Python module calling Gemini
+directly through the `google-genai` SDK (`agent/tools/llm.py`), not the ADK framework
+— there is no `google.adk` import anywhere in this codebase. The contest's model/platform
+requirement ("Google AI models **or** a Google agentic platform") is satisfied by Gemini
+on Vertex AI; ADK was considered and deliberately not adopted, not overlooked.
 
 **Deterministic statistics, not the model, decide every verdict.** `backend/agent/tools/
 stats_test.py` runs a Welch t-test (numeric parameters) or a Fisher exact test
@@ -153,6 +159,54 @@ development; a demo should not depend on a quota window holding. Replay never hi
 itself: `GET /api/health` reports `"replay": "golden"` and the UI shows a `Replay` chip
 in the header, so a viewer is never unsure whether a run is live.
 
+## Deploy
+
+The live site (`https://d-copilot-2026.web.app`) is a static SPA on Firebase Hosting
+calling a Cloud Run API (`https://api-166753422106.asia-south1.run.app`, `asia-south1`)
+directly cross-origin — **not** through the `/api/**` rewrite in `firebase.json`.
+Firebase Hosting's `run` rewrite buffers the full SSE response instead of streaming it
+(measured: a realistic run's events arrived in one burst through the rewrite, spread
+correctly over real time through the direct Cloud Run URL), which would make the live
+trace look frozen then dump everything at once. **The rewrite stays in `firebase.json`,
+configured but deliberately unused** — it costs nothing to leave, and it's a same-origin
+fallback if Cloud Run's URL ever changes or Hosting's buffering is ever fixed. If you are
+reading this because you are about to delete that rewrite as dead code: don't — read the
+paragraph above first, and if you do remove it, you must also point the frontend back at
+a relative `/api` base and re-verify the SSE stream still arrives incrementally, not in
+one burst.
+
+Backend (Cloud Run):
+
+```bash
+cd backend
+gcloud run deploy api --source . \
+  --region asia-south1 --allow-unauthenticated \
+  --min-instances 1 --timeout 300 --memory 2Gi --cpu 2 \
+  --set-env-vars "GCP_PROJECT=$GCP_PROJECT,GCP_REGION=asia-south1,GEMINI_MODEL=$GEMINI_MODEL,EMBED_MODEL=$EMBED_MODEL,BQ_DATASET=plant,GCS_BUCKET=$GCS_BUCKET,RAG_CORPUS=$RAG_CORPUS,PLANT_BACKEND=bigquery,STATE_BACKEND=firestore,DOCS_BACKEND=vertex,FILES_BACKEND=gcs,DEMO_ACCESS_CODE=$DEMO_ACCESS_CODE"
+curl -s "$(gcloud run services describe api --region asia-south1 --format='value(status.url)')/api/health"
+```
+
+Frontend (Firebase Hosting) — the exact command the deployed bundle must be built with,
+so a rebuild tonight reproduces what's live rather than guessing at a shell env no one
+can see again:
+
+```bash
+cd frontend
+npm install
+npm run build        # reads the committed frontend/.env.production: VITE_API_URL
+                      # is the Cloud Run origin above, VITE_USE_MOCKS=false
+cd ..
+firebase deploy --only hosting --project d-copilot-2026   # run from the repo root
+```
+
+`frontend/.env` (gitignored-by-default pattern, but `frontend/.env.production` is
+explicitly un-ignored in `.gitignore`) carries the **local dev** default
+`VITE_USE_MOCKS=true` for `npm run dev`; Vite always prefers `.env.production` over
+`.env` for `npm run build` (production mode), so a build never needs the two
+reconciled by hand. Before this fix, `frontend/.env.production` existed only in the
+shell that ran the first deploy — a rebuild tonight, or by anyone else, would have
+silently produced the mock-mode bundle instead of the live one.
+
 ## Models and region
 
 - `GEMINI_MODEL=gemini-2.5-flash`
@@ -161,15 +215,18 @@ in the header, so a viewer is never unsure whether a run is live.
 
 Both model names are read only from `GEMINI_MODEL` and `EMBED_MODEL` — never hard-coded.
 A test (`backend/agent/tests/test_llm.py::test_no_model_id_is_hard_coded_anywhere_in_the_package`)
-scans every `.py` and `.md` file under `backend/` for a literal `gemini-*` or
+scans every `.py`, `.md` and `.json` file under `backend/` for a literal `gemini-*` or
 `text-embedding-*` string and fails the build if it finds one — which is why the two
 model names above are named here, in the repo-root README, and nowhere under `backend/`.
+(`.json` was added after the scan missed exactly this: a model id committed in the
+seven-case harness's own output, `backend/data/out/run_cases.json` — dropped from that
+file rather than left for the README to excuse.)
 
 ## Tests
 
 ```bash
-cd backend && pytest agent/tests     # 200 passing
-cd frontend && npm test              # 11 passing
+cd backend && pytest agent/tests -p no:randomly     # 209 passing
+cd frontend && npm test                             # 15 passing
 ```
 
 ## Limitations
@@ -197,14 +254,32 @@ cd frontend && npm test              # 11 passing
   conditional write (`set status=approved only if still draft_ready`) would be the real
   fix there. This project deploys with `min-instances=1`, so the process-local lock is
   proportionate for now, not a long-term answer.
+- **Record IDs can collide across a process restart, even under Firestore.** `CAPA-0142`,
+  `H-77`, `WO-412` and `MEM-0001` come from module-level `itertools.count` counters
+  (`agent/state.py`), and `create_record` does an unconditional `.set()` — so the first
+  approval after any restart (a Cloud Run cold start, a redeploy) reissues `CAPA-0142`
+  and overwrites whatever record already held that id, silently. Contained for a
+  single-process demo with one approval at a time, but it is real data loss, not just a
+  display glitch. The real fix is a Firestore-backed counter (an atomic increment
+  document) or a conditional write (`create` semantics, fail if the id already exists)
+  instead of an in-process counter — not attempted here; this is a named, deliberate gap
+  for tonight, not an oversight.
 - **`defect_01.jpg` and `defect_02.jpg` are vision false negatives.** Both carry genuine,
   documented anomalies but consistently read as `none` under the final vision prompt,
   across two independent rounds of prompt tightening. Only `defect_03.jpg` reliably reads
   as a solder bridge and is used as the golden-path image.
-- **Vision reads are majority-stable, not deterministic.** `defect_03.jpg` returned
-  `solder_bridge` in 2 of 3 live calls (1 read `none`); the clean board (`no_defect_01.jpg`)
-  returned `none` in 3 of 4 calls (1 read `misalignment`). Vision latency has ranged from
-  4.4 s to 22.5 s against a 10 s target for the first visible result.
+- **Vision is deterministic at the shipped temperature, but one flake has been observed
+  at the harness level.** At `VISION_TEMPERATURE=0.0` (the shipped setting), 3 runs each
+  of `defect_03.jpg` and `no_defect_01.jpg` came back fully consistent — 3/3
+  `solder_bridge`, 3/3 `none` (`agent/tools/vision_tool.py`; superseding an earlier,
+  stale "2 of 3" / "3 of 4" figure measured at temperature 0.1). Separately, one of the
+  seven committed harness cases (`backend/data/out/run_cases.json`, lot **L2605**)
+  failed with "expected >= 1 rejected verdicts, got 0" — the vision call on that run read
+  no defect in the photo, so the investigator never got to propose or test a hypothesis.
+  This is a vision false negative on one run, the same class of miss documented above for
+  `defect_01.jpg`/`defect_02.jpg`, not a code defect: the deterministic statistics and the
+  provenance check both behaved correctly given what vision handed them. Vision latency
+  has ranged from 4.4 s to 22.5 s against a 10 s target for the first visible result.
 - **Lot L2611's own peak temperature (248.7 °C) is below the 250 °C profile limit**, while
   5 of the 6 lots in the affected window (L2609–L2614) exceed it. This is why the 8D
   states the root cause at the window level — the process drifted after WO-388 — rather

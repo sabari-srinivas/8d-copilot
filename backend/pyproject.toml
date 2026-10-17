@@ -8,7 +8,6 @@ dependencies = [
   "pydantic>=2.9",
   "pydantic-settings>=2.6",
   "python-multipart>=0.0.12",
-  "google-adk>=1.0",
   "google-genai>=1.0",
   "google-cloud-bigquery>=3.26",
   "google-cloud-bigquery-storage>=2.24",   # faster to_dataframe(); avoids a UserWarning
