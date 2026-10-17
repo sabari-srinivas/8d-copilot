@@ -6,6 +6,7 @@ import { useInvestigationStream } from "../api/useInvestigationStream";
 import type { EightD, Investigation } from "../api/types";
 import { ActionToggle } from "../components/ActionToggle";
 import { BackNav } from "../components/BackNav";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import { EightDSection } from "../components/EightDSection";
 
 /** The draft is "here" once the status has left `running` and, if the draft was
@@ -84,6 +85,13 @@ export function Review() {
   if (!inv) {
     return (
       <div className="flex flex-col gap-4">
+        <Breadcrumbs
+          items={[
+            { label: "Complaints", to: "/complaints" },
+            { label: `Investigation ${id ?? ""}`, to: `/inv/${id}` },
+            { label: "Review" },
+          ]}
+        />
         <BackNav investigationId={id} />
         <p className="text-sm opacity-60">Loading draft…</p>
       </div>
@@ -130,6 +138,13 @@ export function Review() {
 
   return (
     <div className="flex flex-col gap-4 max-w-3xl">
+      <Breadcrumbs
+        items={[
+          { label: "Complaints", to: "/complaints" },
+          { label: `Investigation ${id ?? ""}`, to: `/inv/${id}` },
+          { label: "Review" },
+        ]}
+      />
       <BackNav investigationId={id} />
       <div>
         <h1 className="text-lg font-semibold">Review 8D</h1>

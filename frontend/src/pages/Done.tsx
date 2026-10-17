@@ -1,9 +1,10 @@
-import { CheckCircle2, Copy } from "lucide-react";
+import { ArrowRight, CheckCircle2, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { getInvestigation } from "../api/client";
 import type { ApproveResult, Investigation } from "../api/types";
 import { BackNav } from "../components/BackNav";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import { ProvenanceTag } from "../components/ProvenanceTag";
 
 type DoneState = { result: ApproveResult; note: string } | undefined;
@@ -69,6 +70,13 @@ export function Done() {
 
   return (
     <div className="flex flex-col gap-4 max-w-2xl">
+      <Breadcrumbs
+        items={[
+          { label: "Complaints", to: "/complaints" },
+          { label: `Investigation ${id ?? ""}`, to: `/inv/${id}` },
+          { label: "Done" },
+        ]}
+      />
       <BackNav investigationId={id} />
       <div>
         <h1 className="flex items-center gap-2 text-lg font-semibold">
@@ -80,6 +88,21 @@ export function Done() {
           {confirmedCause && <> · confirmed cause: {confirmedCause}</>}
         </p>
       </div>
+
+      {state?.result.capa_id && (
+        // No dead ends: approval is the end of the investigation flow but not the end
+        // of the lifecycle. This is the obvious, impossible-to-miss next step straight
+        // to the CAPA record just created -- CapaCard's own `?highlight=` reads this
+        // same id and rings the matching card so it is unmistakable in the list.
+        <Link
+          to={`/capa?highlight=${encodeURIComponent(state.result.capa_id)}`}
+          className="tap-target inline-flex items-center justify-between gap-2 rounded-md px-4 text-sm font-semibold text-[var(--pill-fg-strong)] w-fit transition-opacity hover:opacity-90"
+          style={{ background: "var(--green)" }}
+        >
+          Continue to CAPA {state.result.capa_id}
+          <ArrowRight size={15} aria-hidden="true" />
+        </Link>
+      )}
 
       {!state && (
         <div className="card p-3 text-sm" role="status">

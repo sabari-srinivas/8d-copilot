@@ -227,6 +227,161 @@ export interface CreateInvestigationResult {
   status: Status;
 }
 
+export type CapaVerdict = "worked" | "never_worked" | "regressed" | "insufficient_data";
+
+/** Mirrors backend/agent/models.py's CapaEffectiveness -- did a past CAPA actually
+ * reduce the defect rate? Same reporting shape as HypothesisResult, plus the
+ * CAPA-specific context and three-window breakdown (before/immediate/recent). */
+export interface CapaEffectiveness {
+  capa_id: string;
+  defect_type: string;
+  line: string;
+  implemented_on: string;
+  verdict: CapaVerdict;
+  test: string;
+  p_value: number | null;
+  effect: string;
+  effect_value: number | null;
+  effect_unit: string;
+  n_before: number;
+  n_immediate: number;
+  n_recent: number;
+  group_labels: string[];
+  before_rate: number | null;
+  immediate_rate: number | null;
+  recent_rate: number | null;
+  p_immediate: number | null;
+  p_recent: number | null;
+  chart_url: string | null;
+}
+
+/** GET /api/capas row. `defect_type`/`line`/`memory_id` come from the quality-memory
+ * entry this CAPA produced (matched on capa_id) -- a CAPA record itself carries none
+ * of them. `effectiveness` is null until both are known. */
+export interface CapaRecord {
+  id: string;
+  investigation_id: string;
+  complaint_id: string;
+  lot_id: string;
+  root_cause: string;
+  owner: string;
+  opened: string;
+  status: string;
+  summary: string;
+  approver: string;
+  note: string;
+  defect_type: string;
+  line: string;
+  memory_id: string;
+  effectiveness: CapaEffectiveness | null;
+}
+
+export interface FirstPassYield {
+  units: number;
+  defects: number;
+  pct: number;
+}
+
+export interface OpenEightDs {
+  count: number;
+  soonest_due_working_days: number | null;
+}
+
+/** `recurrence_rate` is null until at least one CAPA has a determinate effectiveness
+ * verdict (not insufficient_data) -- never a fabricated 0%. */
+export interface CapaDashboardSummary {
+  open: number;
+  recurrence_rate: number | null;
+  n_evaluated: number;
+}
+
+export interface DefectRateByLinePoint {
+  lot_id: string;
+  date: string;
+  rate_pct: number;
+}
+
+/** The dashboard's hero chart: defect rate by lot, Line 1 vs Line 2, with a marker at
+ * the work order that planted the drift. Rates and averages are already *100
+ * (percentages), not fractions. */
+export interface DefectRateByLine {
+  line1: DefectRateByLinePoint[];
+  line2: DefectRateByLinePoint[];
+  line1_avg_pct: number;
+  line2_avg_pct: number;
+  marker_date: string;
+  marker_label: string;
+}
+
+export interface DefectPareto {
+  solder_bridge: number;
+  other: number;
+}
+
+export interface SpcPoint {
+  lot_id: string;
+  date: string;
+  value: number;
+}
+
+export interface SpcReflowPeak {
+  limit_c: number;
+  points: SpcPoint[];
+}
+
+export interface DashboardCharts {
+  defect_rate_by_line: DefectRateByLine;
+  defect_pareto: DefectPareto;
+  spc_reflow_peak: SpcReflowPeak;
+}
+
+/** GET /api/dashboard/summary -- every number computed live, never hard-coded. */
+export interface DashboardSummary {
+  first_pass_yield: FirstPassYield;
+  open_eight_ds: OpenEightDs;
+  capas: CapaDashboardSummary;
+  lots_on_hold: number;
+  charts: DashboardCharts;
+}
+
+/** GET /api/plant/lots row -- lots.csv joined to process.csv, the full per-lot
+ * receipts. Carries operator_id/shift (real plant columns) but the UI must never
+ * build an aggregate "defects by operator/shift" view from them. */
+export interface PlantLot {
+  lot_id: string;
+  line: string;
+  shift: string;
+  date: string;
+  product: string;
+  qty: number;
+  paste_lot: string;
+  stencil_id: string;
+  operator_id: string;
+  defects_solder_bridge: number;
+  defects_other: number;
+  bridge_rate: number;
+  ship_status: string;
+  reflow_peak_temp_c: number;
+  time_above_liquidus_s: number;
+  preheat_ramp_c_per_s: number;
+  soak_time_s: number;
+  conveyor_speed_cm_min: number;
+  paste_age_h: number;
+  room_humidity_pct: number;
+  stencil_print_count: number;
+  squeegee_pressure_kg: number;
+}
+
+export interface MaintenanceEvent {
+  wo_id: string;
+  line: string;
+  date: string;
+  asset: string;
+  description: string;
+  status: string;
+  post_check: string;
+}
+
 export interface HealthResult {
   ok: boolean;
   model: string;

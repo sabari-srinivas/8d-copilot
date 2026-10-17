@@ -5,6 +5,7 @@ import { getInvestigationReady, resolveApiUrl } from "../api/client";
 import { useInvestigationStream } from "../api/useInvestigationStream";
 import type { Investigation } from "../api/types";
 import { BackNav } from "../components/BackNav";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import { CitationChip } from "../components/CitationChip";
 import { ProvenanceTag } from "../components/ProvenanceTag";
 import { TempChart } from "../components/TempChart";
@@ -39,6 +40,13 @@ export function Evidence() {
   if (!inv) {
     return (
       <div className="flex flex-col gap-4">
+        <Breadcrumbs
+          items={[
+            { label: "Complaints", to: "/complaints" },
+            { label: `Investigation ${id ?? ""}`, to: `/inv/${id}` },
+            { label: "Evidence" },
+          ]}
+        />
         <BackNav investigationId={id} />
         <p className="text-sm opacity-60">Loading evidence…</p>
       </div>
@@ -50,6 +58,13 @@ export function Evidence() {
 
   return (
     <div className="flex flex-col gap-5">
+      <Breadcrumbs
+        items={[
+          { label: "Complaints", to: "/complaints" },
+          { label: `Investigation ${id ?? ""}`, to: `/inv/${id}` },
+          { label: "Evidence" },
+        ]}
+      />
       <BackNav investigationId={id} />
       <h1 className="text-lg font-semibold">Evidence</h1>
 

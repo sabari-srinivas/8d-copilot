@@ -1,8 +1,9 @@
 import { AlertCircle, Clock, Inbox as InboxIcon, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listComplaints } from "../api/client";
-import type { Complaint } from "../api/types";
+import { listCapas, listComplaints } from "../api/client";
+import type { CapaRecord, Complaint } from "../api/types";
+import { LifecycleStrip } from "../components/LifecycleStrip";
 
 function humanizeDefect(s: string): string {
   const words = s.replace(/_/g, " ");
@@ -128,14 +129,19 @@ function byUrgency(a: Complaint, b: Complaint): number {
   return a.due_in_working_days - b.due_in_working_days;
 }
 
-/** Route "/" — one card per open complaint needing an 8D, plus a quiet list of
- * past investigations below. Tapping an open card starts a new investigation. */
-export function Inbox() {
+/** Route "/complaints" (second stop in the lifecycle: see the state on the Dashboard,
+ * pick the work here) — one card per open complaint needing an 8D, plus the closed
+ * ones below, each linking forward to the CAPA it produced (the loop the PRD asks to
+ * make visible: a past investigation -> the corrective action it raised). Tapping an
+ * open card starts a new investigation — unchanged from the original Inbox. */
+export function Complaints() {
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
+  const [capas, setCapas] = useState<CapaRecord[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     listComplaints().then(setComplaints);
+    listCapas().then(setCapas).catch(() => setCapas([]));
   }, []);
 
   if (!complaints) {
@@ -144,9 +150,11 @@ export function Inbox() {
 
   const open = complaints.filter((c) => c.status === "open").sort(byUrgency);
   const closed = complaints.filter((c) => c.status === "closed");
+  const capaByComplaint = new Map(capas.map((c) => [c.complaint_id, c]));
 
   return (
     <div className="flex flex-col gap-5">
+      <LifecycleStrip current="Complaints" />
       <KpiStrip open={open} />
 
       <section>
@@ -171,26 +179,34 @@ export function Inbox() {
         )}
       </section>
 
-      <section>
+      <section id="past-investigations">
         <h2 className="text-sm font-semibold mb-2 opacity-80">Past investigations</h2>
         {closed.length === 0 ? (
           <p className="text-sm opacity-60">No closed complaints yet.</p>
         ) : (
           <ul className="flex flex-col gap-1">
-            {closed.map((c) => (
-              <li key={c.complaint_id} className="card px-3 py-2 text-sm flex flex-wrap items-center gap-2 opacity-75">
-                <span className="font-medium">{c.customer}</span>
-                <span className="opacity-60">· {c.product} · lot <span className="mono">{c.lot_id}</span></span>
-                <span className="mono text-xs opacity-50 ml-auto">{c.complaint_id} · closed</span>
-              </li>
-            ))}
+            {closed.map((c) => {
+              const capa = capaByComplaint.get(c.complaint_id);
+              return (
+                <li key={c.complaint_id} className="card px-3 py-2 text-sm flex flex-wrap items-center gap-2 opacity-90">
+                  <span className="font-medium">{c.customer}</span>
+                  <span className="opacity-60">· {c.product} · lot <span className="mono">{c.lot_id}</span></span>
+                  <span className="mono text-xs opacity-50">{c.complaint_id} · closed</span>
+                  {capa && (
+                    <Link
+                      to={`/capa?highlight=${encodeURIComponent(capa.id)}`}
+                      className="tap-target inline-flex items-center text-xs font-semibold underline ml-auto"
+                      style={{ color: "var(--green)" }}
+                    >
+                      {capa.id} →
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
-
-      <Link to="/memory" className="tap-target inline-flex items-center text-sm font-medium underline w-fit" style={{ color: "var(--green)" }}>
-        View quality memory →
-      </Link>
     </div>
   );
 }

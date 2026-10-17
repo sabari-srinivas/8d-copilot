@@ -1,13 +1,26 @@
 import { getDemoCode } from "./demoCode";
-import { mockApproval, mockComplaints, mockInvestigation, mockMemory } from "./mocks";
+import {
+  mockApproval,
+  mockCapas,
+  mockComplaints,
+  mockDashboardSummary,
+  mockInvestigation,
+  mockMemory,
+  mockPlantLots,
+  mockPlantMaintenance,
+} from "./mocks";
 import type {
   ApproveBody,
   ApproveResult,
+  CapaRecord,
   Complaint,
   CreateInvestigationResult,
+  DashboardSummary,
   HealthResult,
   Investigation,
+  MaintenanceEvent,
   MemoryEntry,
+  PlantLot,
 } from "./types";
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
@@ -89,6 +102,18 @@ export const approve = (id: string, body: ApproveBody): Promise<ApproveResult> =
 
 export const listMemory = (): Promise<MemoryEntry[]> =>
   USE_MOCKS ? mockMemory() : json<MemoryEntry[]>("/memory");
+
+export const getDashboardSummary = (): Promise<DashboardSummary> =>
+  USE_MOCKS ? mockDashboardSummary() : json<DashboardSummary>("/dashboard/summary");
+
+export const listCapas = (): Promise<CapaRecord[]> =>
+  USE_MOCKS ? mockCapas() : json<CapaRecord[]>("/capas");
+
+export const listPlantLots = (): Promise<PlantLot[]> =>
+  USE_MOCKS ? mockPlantLots() : json<PlantLot[]>("/plant/lots");
+
+export const listPlantMaintenance = (): Promise<MaintenanceEvent[]> =>
+  USE_MOCKS ? mockPlantMaintenance() : json<MaintenanceEvent[]>("/plant/maintenance");
 
 /** Health is advisory — callers must tolerate failure. In mock mode there is no backend,
  * so report a live (non-replay) run rather than pretending to know. */

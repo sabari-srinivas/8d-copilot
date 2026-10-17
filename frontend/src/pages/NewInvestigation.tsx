@@ -93,7 +93,10 @@ export function NewInvestigation() {
   }, [complaintId]);
 
   if (!complaintId || notFound) {
-    return <Navigate to="/" replace />;
+    // "/" is the dashboard now, not the complaint list -- redirect to the screen
+    // that actually lets Priya pick a complaint (CR #1's point still holds: /new is
+    // not a destination reachable with nothing selected).
+    return <Navigate to="/complaints" replace />;
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {

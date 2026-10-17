@@ -7,6 +7,7 @@ import type { AgentEvent } from "../api/types";
 import { useInvestigationStream } from "../api/useInvestigationStream";
 import { DefectPhoto } from "../components/DefectPhoto";
 import { HypothesisCard } from "../components/HypothesisCard";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import { Timeline } from "../components/Timeline";
 
 function ReconnectingBanner() {
@@ -130,6 +131,12 @@ export function LiveInvestigation() {
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs
+        items={[
+          { label: "Complaints", to: "/complaints" },
+          { label: `Investigation ${id ?? ""}` },
+        ]}
+      />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-lg font-semibold">
           Investigation <span className="mono text-base opacity-70">{id}</span>
