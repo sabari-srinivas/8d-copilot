@@ -1,15 +1,67 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { createInvestigation, listComplaints } from "../api/client";
 import type { Complaint } from "../api/types";
 
+/** Previous/next among the OPEN complaints, in the same due-date order the inbox shows
+ * (CR #8) — lets Priya move to another complaint without detouring back through the
+ * inbox each time. `null` when there is nowhere to go (only/first/last complaint). */
+function AdjacentComplaintNav({
+  complaints,
+  currentId,
+}: {
+  complaints: Complaint[];
+  currentId: string;
+}) {
+  const open = complaints
+    .filter((c) => c.status === "open")
+    .sort((a, b) => (a.due_in_working_days ?? Infinity) - (b.due_in_working_days ?? Infinity));
+  const index = open.findIndex((c) => c.complaint_id === currentId);
+  if (index === -1 || open.length < 2) return null;
+  const prev = open[index - 1];
+  const next = open[index + 1];
+
+  return (
+    <nav aria-label="Other complaints" className="flex items-center gap-3 text-sm mb-4">
+      {prev ? (
+        <Link
+          to={`/new?complaint=${encodeURIComponent(prev.complaint_id)}`}
+          className="tap-target inline-flex items-center gap-1 font-medium underline"
+          style={{ color: "var(--green)" }}
+        >
+          ← {prev.customer}
+        </Link>
+      ) : (
+        <span />
+      )}
+      <span className="opacity-40 mono text-xs ml-auto">
+        {index + 1} of {open.length}
+      </span>
+      {next && (
+        <Link
+          to={`/new?complaint=${encodeURIComponent(next.complaint_id)}`}
+          className="tap-target inline-flex items-center gap-1 font-medium underline"
+          style={{ color: "var(--green)" }}
+        >
+          {next.customer} →
+        </Link>
+      )}
+    </nav>
+  );
+}
+
 /** Route "/new" — upload the defect photo and (optionally) the lot traveler, confirm
- * the complaint text and lot, and start the investigation. */
+ * the complaint text and lot, and start the investigation.
+ *
+ * CR #1: this screen only makes sense FOR a complaint — an investigation with no
+ * complaint has no customer, no product and no due date, so it is not reachable with
+ * nothing selected; a direct hit with no `?complaint=` redirects to the inbox. */
 export function NewInvestigation() {
   const [params] = useSearchParams();
   const complaintId = params.get("complaint") ?? "";
   const navigate = useNavigate();
 
+  const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [complaintText, setComplaintText] = useState("");
   const [lotId, setLotId] = useState("");
@@ -17,20 +69,27 @@ export function NewInvestigation() {
   const [travelerName, setTravelerName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (!complaintId) return;
     listComplaints().then((list) => {
+      setComplaints(list);
       const found = list.find((c) => c.complaint_id === complaintId) ?? null;
       setComplaint(found);
+      setNotFound(!found);
       if (found) {
         setComplaintText(found.text);
         setLotId(found.lot_id);
       }
     });
   }, [complaintId]);
+
+  if (!complaintId || notFound) {
+    return <Navigate to="/" replace />;
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,16 +113,28 @@ export function NewInvestigation() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="text-lg font-semibold mb-1">New investigation</h1>
+      {complaints && <AdjacentComplaintNav complaints={complaints} currentId={complaintId} />}
+
+      <h1 className="text-lg font-semibold mb-1">
+        {complaint ? `${complaint.customer} · ${complaint.product}` : "Loading complaint…"}
+      </h1>
+      <p className="text-sm opacity-70 mb-1">
+        Complaint <span className="mono">{complaintId}</span>
+        {complaint ? ` · lot ${complaint.lot_id}` : ""}
+      </p>
+      {complaint?.is_rejection && (
+        <p
+          className="text-sm rounded-lg border px-3 py-2 mb-4"
+          style={{ borderColor: "var(--red)", color: "var(--red)" }}
+        >
+          This is a customer rejection of an 8D already submitted. The agent will revise
+          the rejected sections, not start a fresh investigation.
+          {complaint.objection && <> Objection: &ldquo;{complaint.objection}&rdquo;</>}
+        </p>
+      )}
       <p className="text-sm opacity-70 mb-6">
-        {complaintId ? (
-          <>
-            For complaint <span className="mono">{complaintId}</span>
-            {complaint ? ` · ${complaint.customer} · ${complaint.product}` : ""}
-          </>
-        ) : (
-          "No complaint selected — fill in the details manually."
-        )}
+        Photograph the returned board and confirm the lot before starting the
+        investigation.
       </p>
 
       <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-5">

@@ -1,0 +1,23 @@
+import { Link } from "react-router-dom";
+
+/** CR #3: Evidence, Review and Done had no way out except the browser back button
+ * (Evidence had no navigation at all). Every one of them gets this: back to the live
+ * investigation trace, plus a route straight home to the inbox. */
+export function BackNav({ investigationId }: { investigationId: string | undefined }) {
+  return (
+    <nav aria-label="Back" className="flex items-center gap-4 text-sm mb-4">
+      {investigationId && (
+        <Link
+          to={`/inv/${investigationId}`}
+          className="tap-target inline-flex items-center gap-1 font-medium underline"
+          style={{ color: "var(--green)" }}
+        >
+          ← Back to investigation
+        </Link>
+      )}
+      <Link to="/" className="tap-target inline-flex items-center gap-1 opacity-70 underline">
+        Inbox
+      </Link>
+    </nav>
+  );
+}

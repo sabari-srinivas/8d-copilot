@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { getInvestigationReady, resolveApiUrl } from "../api/client";
 import { useInvestigationStream } from "../api/useInvestigationStream";
 import type { Investigation } from "../api/types";
+import { BackNav } from "../components/BackNav";
 import { CitationChip } from "../components/CitationChip";
 import { ProvenanceTag } from "../components/ProvenanceTag";
 import { TempChart } from "../components/TempChart";
@@ -34,13 +35,21 @@ export function Evidence() {
     };
   }, [id, stream.status]);
 
-  if (!inv) return <p className="text-sm opacity-60">Loading evidence…</p>;
+  if (!inv) {
+    return (
+      <div className="flex flex-col gap-4">
+        <BackNav investigationId={id} />
+        <p className="text-sm opacity-60">Loading evidence…</p>
+      </div>
+    );
+  }
 
   const hypothesisText = (hid: string) => inv.hypotheses.find((h) => h.id === hid)?.text ?? hid;
   const chartUrl = resolveApiUrl(inv.chart_url);
 
   return (
     <div className="flex flex-col gap-6">
+      <BackNav investigationId={id} />
       <h1 className="text-lg font-semibold">Evidence</h1>
 
       <section>

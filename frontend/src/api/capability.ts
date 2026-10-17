@@ -125,6 +125,16 @@ export function describeStep(event: AgentEvent): StepDescription | null {
       }
       return { text: "Grounded generation, Gemini", kind: "ai" };
 
+    // CR #14: a genuinely different use of the model from "writer" above — editing an
+    // existing 8D against a customer's specific objection, not drafting from nothing —
+    // made visible in the trace with its own capability label rather than folded into
+    // "Grounded generation".
+    case "reviser":
+      if (event.type === "draft_ready") {
+        return { text: "Every number checked against a tool result", kind: "computed" };
+      }
+      return { text: "Grounded editing against the customer's objection, Gemini", kind: "ai" };
+
     default:
       return null;
   }

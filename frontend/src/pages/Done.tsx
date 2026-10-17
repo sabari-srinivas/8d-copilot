@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { getInvestigation } from "../api/client";
 import type { ApproveResult, Investigation } from "../api/types";
+import { BackNav } from "../components/BackNav";
 import { ProvenanceTag } from "../components/ProvenanceTag";
 
 type DoneState = { result: ApproveResult; note: string } | undefined;
@@ -67,6 +68,7 @@ export function Done() {
 
   return (
     <div className="flex flex-col gap-5 max-w-2xl">
+      <BackNav investigationId={id} />
       <div>
         <h1 className="text-lg font-semibold">8D approved by Priya R.</h1>
         <p className="text-sm opacity-70">

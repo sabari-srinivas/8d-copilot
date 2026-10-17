@@ -8,6 +8,7 @@ const AGENT_LABEL: Record<AgentEvent["agent"], string> = {
   investigator: "Investigator",
   evidence: "Evidence",
   writer: "Writer",
+  reviser: "Reviser",
   system: "System",
 };
 

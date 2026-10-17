@@ -4,6 +4,7 @@ import { approve, getInvestigationReady } from "../api/client";
 import { useInvestigationStream } from "../api/useInvestigationStream";
 import type { EightD, Investigation } from "../api/types";
 import { ActionToggle } from "../components/ActionToggle";
+import { BackNav } from "../components/BackNav";
 import { EightDSection } from "../components/EightDSection";
 
 /** The draft is "here" once the status has left `running` and, if the draft was
@@ -79,7 +80,14 @@ export function Review() {
     return inv.hypotheses.find((h) => supported.has(h.id))?.text ?? "";
   }, [inv]);
 
-  if (!inv) return <p className="text-sm opacity-60">Loading draft…</p>;
+  if (!inv) {
+    return (
+      <div className="flex flex-col gap-4">
+        <BackNav investigationId={id} />
+        <p className="text-sm opacity-60">Loading draft…</p>
+      </div>
+    );
+  }
 
   const insufficientEvidence = inv.status === "insufficient_evidence";
 
@@ -121,6 +129,7 @@ export function Review() {
 
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
+      <BackNav investigationId={id} />
       <div>
         <h1 className="text-lg font-semibold">Review 8D</h1>
         <p className="text-sm opacity-70">

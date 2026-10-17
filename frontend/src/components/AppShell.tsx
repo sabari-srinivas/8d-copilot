@@ -2,9 +2,12 @@ import { useEffect, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { getHealth } from "../api/client";
 
+// CR #1: "New" dropped on purpose. Customers raise complaints; Priya receives and
+// investigates them, she does not file one herself — the /new route stays (the inbox
+// still navigates there with ?complaint=…) but it is no longer a destination reachable
+// with nothing selected (see NewInvestigation.tsx's redirect).
 const NAV_ITEMS = [
   { to: "/", label: "Inbox", icon: InboxIcon },
-  { to: "/new", label: "New", icon: PlusIcon },
   { to: "/memory", label: "Memory", icon: MemoryIcon },
 ];
 
@@ -147,14 +150,6 @@ function InboxIcon() {
         strokeWidth="1.6"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
