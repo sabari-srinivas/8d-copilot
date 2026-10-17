@@ -9,6 +9,19 @@ dependencies = [
   "pydantic-settings>=2.6",
   "python-multipart>=0.0.12",
   "google-genai>=1.0",
+  # agent/tools/doc_search.py's DOCS_BACKEND=vertex path (what Cloud Run actually runs)
+  # does `import agentplatform` / `from agentplatform import rag` for the Vertex AI RAG
+  # Engine client. That top-level module ships inside google-cloud-aiplatform's
+  # "agent-engines" extra -- it has nothing to do with ADK -- but until now it only
+  # ever arrived transitively via the (now-removed) google-adk dependency, which
+  # pinned exactly this range. Declaring it directly here is the correct fix, not
+  # bringing ADK back: ADK itself is still unused. Found live, the hard way: removing
+  # google-adk without this made a fresh container build (gcloud run deploy --source,
+  # which runs `pip install -e .` from scratch) raise ModuleNotFoundError the moment a
+  # real investigation reached the evidence/doc-search step -- a path no test exercises,
+  # since doc_search.py imports agentplatform lazily specifically "so no test path ever
+  # loads it" (see that module's own comment).
+  "google-cloud-aiplatform[agent-engines]>=1.95.1,<2.0.0",
   "google-cloud-bigquery>=3.26",
   "google-cloud-bigquery-storage>=2.24",   # faster to_dataframe(); avoids a UserWarning
   "db-dtypes>=1.3",       # required by bigquery.QueryJob.to_dataframe() for DATE columns
