@@ -266,7 +266,7 @@ function mockLots(): PlantLot[] {
     date.setUTCDate(date.getUTCDate() + Math.floor(i / 2));
     const drift = DRIFT_LOTS.has(lotId);
     const line = drift ? "L2" : i % 2 === 0 ? "L1" : "L2";
-    const bridges = lotId === "L2611" ? 14 : drift ? 13 : (i % 7 === 0 ? 2 : 0);
+    const bridges = lotId === "L2611" ? 14 : drift ? 13 : (i % 2 === 0 ? 2 : 1);
     const qty = 500;
     lots.push({
       lot_id: lotId, line, shift: "ABC"[i % 3], date: date.toISOString().slice(0, 10),

@@ -225,7 +225,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex-1 flex w-full">
         <nav
           aria-label="Primary"
-          className={`hidden md:flex flex-col shrink-0 border-r py-3 transition-[width] duration-200 ${
+          // No width transition here: animating `width` is a layout property, not
+          // transform/opacity, so it stays untransitioned (snaps instantly) per the
+          // product's own motion rule (index.css's prefers-reduced-motion block,
+          // 150-300ms transform/opacity only) rather than adding a new kind of
+          // animation this app doesn't otherwise use.
+          className={`hidden md:flex flex-col shrink-0 border-r py-3 ${
             collapsed ? "w-14 px-1.5" : "w-56 px-2"
           }`}
           style={{ borderColor: "var(--line)" }}
