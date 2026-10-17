@@ -15,6 +15,7 @@ from agent import orchestrator
 from agent.agents import evidence as evidence_agent
 from agent.agents import intake as intake_agent
 from agent.agents import investigator as inv_agent
+from agent.agents import reviser as reviser_agent
 from agent.agents import writer as writer_agent
 from agent.events import bus
 from agent.models import (Complaint, Defect, EightD, EightDSection, Hypothesis, Passage)
@@ -368,3 +369,66 @@ async def test_the_draft_is_provenance_clean(wired):
     inv_id = await _run()
     errors = [e for e in bus.history(inv_id) if e.type == "error"]
     assert errors == []
+
+
+# --- CR #14: rejected-8D complaints take the revise path, not a fresh draft --------
+
+
+REJECTION_EIGHT_D = {
+    f"D{i}": {"text": "Root cause: operator error." if i == 4 else "x.", "citations": []}
+    for i in range(1, 9)
+}
+REJECTION_COMPLAINT = Complaint(
+    complaint_id="C-2026-033", customer="Hoshino Denso (fictional)", product="ECU-PCB-7",
+    lot_id=GOLDEN_LOT, defect="solder_bridge", is_rejection=True,
+    objection="root cause stated as operator error; not acceptable",
+    original_eight_d=REJECTION_EIGHT_D,
+    text="We are returning the 8D unapproved: root cause stated as operator error; "
+         "not acceptable.")
+
+
+@pytest.mark.asyncio
+async def test_a_rejection_complaint_is_revised_not_redrafted(wired, monkeypatch):
+    """The orchestrator must call reviser.run, not writer.run, for a complaint whose
+    deterministic CSV record (not the LLM's free-text parse) says is_rejection."""
+    monkeypatch.setattr(orchestrator, "get_complaint_record",
+                        lambda *a, **k: REJECTION_COMPLAINT)
+    writer_called = False
+
+    def writer_boom(*a, **k):
+        nonlocal writer_called
+        writer_called = True
+        raise AssertionError("writer.run must not be called for a rejection")
+    monkeypatch.setattr(writer_agent, "generate_structured", writer_boom)
+
+    revised_d4 = EightDSection(text="Root cause: reflow peak temperature drift after "
+                               "WO-388, verified by Welch t-test "
+                               "[Chart: reflow peak temp by lot].")
+    other = EightDSection(text="Carried forward from the original 8D.")
+    monkeypatch.setattr(reviser_agent, "generate_structured", lambda *a, **k:
+                        reviser_agent.WriterOutput(
+                            status="draft_ready",
+                            eight_d=EightD(D1=other, D2=other, D3=other, D4=revised_d4,
+                                          D5=other, D6=other, D7=other, D8=other)))
+
+    inv_id = await _run()
+    inv = wired.get_investigation(inv_id)
+    assert not writer_called
+    assert inv.status == "draft_ready"
+    assert "operator error" not in inv.eight_d.D4.text.lower()
+    types_and_agents = [(e.agent, e.type) for e in bus.history(inv_id)]
+    assert ("reviser", "draft_ready") in types_and_agents
+    assert ("writer", "draft_ready") not in types_and_agents
+
+
+@pytest.mark.asyncio
+async def test_an_ordinary_complaint_still_uses_the_writer(wired, monkeypatch):
+    """A non-rejection complaint record must not be routed through the reviser."""
+    non_rejection = Complaint(complaint_id="C-2026-031", customer="Hoshino Denso (fictional)",
+                              product="ECU-PCB-7", lot_id=GOLDEN_LOT, defect="solder_bridge",
+                              is_rejection=False)
+    monkeypatch.setattr(orchestrator, "get_complaint_record", lambda *a, **k: non_rejection)
+    inv_id = await _run()
+    agents = {e.agent for e in bus.history(inv_id)}
+    assert "writer" in agents
+    assert "reviser" not in agents

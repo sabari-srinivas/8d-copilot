@@ -11,10 +11,11 @@ import mimetypes
 import uuid
 from datetime import datetime, timezone
 
-from agent.agents import evidence, intake, investigator, vision, writer
+from agent.agents import evidence, intake, investigator, reviser, vision, writer
 from agent.events import bus
 from agent.models import Investigation, ProposedAction
 from agent.state import get_state
+from agent.tools.intake_tools import get_complaint_record
 from agent.tools.plant_data import get_comparison_groups, get_lot_genealogy
 from agent.tools.storage import put_bytes
 
@@ -154,6 +155,21 @@ async def run_investigation(inv_id: str) -> None:
         inv.defect = defect
         await asyncio.to_thread(state.save_investigation, inv)
 
+        # Whether this complaint is a rejection of an already-submitted 8D (and, if so,
+        # its objection and the D1-D8 text being rejected) is a fact about the
+        # complaint RECORD, not something to infer from the free text `complaint`
+        # above was parsed from by the intake LLM (agent/tools/intake_tools.parse_
+        # complaint) -- that parse's schema includes is_rejection/objection/
+        # original_eight_d too (Complaint is one model on both paths), but whatever it
+        # produced there is overwritten here with the deterministic CSV lookup so a
+        # hallucinated or omitted value from the free-text parse can never decide which
+        # path (writer vs reviser) this investigation takes.
+        record = await asyncio.to_thread(get_complaint_record, inv.complaint_id)
+        if record is not None:
+            complaint.is_rejection = record.is_rejection
+            complaint.objection = record.objection
+            complaint.original_eight_d = record.original_eight_d
+
         if inv.defect.type == "none":
             inv.status = "insufficient_evidence"
             inv.missing_data = [NO_DEFECT_VISIBLE]
@@ -176,7 +192,17 @@ async def run_investigation(inv_id: str) -> None:
         inv.citations = await evidence.run(inv_id, inv)
         await asyncio.to_thread(state.save_investigation, inv)
 
-        out = await writer.run(inv_id, inv, complaint)
+        # Revise, don't redraft (CR #14): a rejection with an original 8D to revise
+        # against takes a distinct path (agent/agents/reviser.py) that reads the
+        # customer's objection and the rejected D1-D8 text, grounded in the SAME test
+        # results and citations a fresh draft would use. A rejection row with no
+        # original_eight_d (should not happen from generate_plant.py's seed, but a
+        # hand-edited complaints.csv could do it) falls back to drafting fresh rather
+        # than crashing.
+        if complaint.is_rejection and complaint.original_eight_d:
+            out = await reviser.run(inv_id, inv, complaint)
+        else:
+            out = await writer.run(inv_id, inv, complaint)
         inv.eight_d = out.eight_d
         inv.missing_data = out.missing_data
         inv.status = "draft_ready" if out.status == "draft_ready" else "insufficient_evidence"
