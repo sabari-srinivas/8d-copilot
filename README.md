@@ -209,6 +209,24 @@ cd frontend && npm test              # 11 passing
   5 of the 6 lots in the affected window (L2609–L2614) exceed it. This is why the 8D
   states the root cause at the window level — the process drifted after WO-388 — rather
   than claiming the one named lot itself crossed the limit.
+- **A hypothesis test is scoped to the product and a 30-day window, never to the lot under
+  investigation.** `get_comparison_groups(lot_id, ...)` accepts a `lot_id` but does not
+  filter on it — the defect-lots/good-lots split comes entirely from `product` and the
+  trailing 30 days. Running the harness against lots clearly outside the drifted window
+  (L2590, 1 Oct; L2601, 7 Oct) still returned a **supported** reflow-temperature hypothesis,
+  because a real drift exists in that window for *some* lots and the test does not check
+  whether the investigated lot is one of them — only whether the photographed defect type
+  warrants running the test at all. We think this is defensible, not a bug: the proposed
+  hold list (`hold_lots`) is built from the actual defect lots, not from the investigated
+  one, so the system never recommends containing a lot that isn't implicated, and a
+  genuine process drift is a true, actionable fact about every lot made during that window
+  regardless of which lot's complaint surfaced it — lot-level defect counts are noisy at
+  this volume, and a multi-lot drift is the more reliable signal. But it does mean the 8D's
+  root-cause finding answers "is a known process issue active right now," not "did this
+  specific lot's own data show it" — those are different questions, and the draft does not
+  currently flag when the investigated lot falls outside the implicated group. Read the
+  window dates and `hold_lots` alongside D4 before treating a supported verdict as proof
+  about the named lot itself.
 
 ## Credits
 

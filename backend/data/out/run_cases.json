@@ -1,0 +1,101 @@
+{
+  "generated_at": "2026-10-17T05:04:05Z",
+  "model": "gemini-2.5-flash",
+  "inter_case_delay_s": 20.0,
+  "case_timeout_s": 270.0,
+  "passed": 6,
+  "skipped": 0,
+  "failed": 1,
+  "gate_passed": true,
+  "cases": [
+    {
+      "name": "golden",
+      "lot": "L2611",
+      "image": "defect_03.jpg",
+      "outcome": "PASS",
+      "status_reached": "draft_ready",
+      "verdict_counts": {
+        "supported": 1,
+        "rejected": 3,
+        "inconclusive": 1
+      },
+      "elapsed_s": 44.1,
+      "reason": ""
+    },
+    {
+      "name": "drift lot",
+      "lot": "L2612",
+      "image": "defect_03.jpg",
+      "outcome": "PASS",
+      "status_reached": "draft_ready",
+      "verdict_counts": {
+        "supported": 1,
+        "rejected": 3,
+        "inconclusive": 1
+      },
+      "elapsed_s": 48.2,
+      "reason": ""
+    },
+    {
+      "name": "drift lot",
+      "lot": "L2614",
+      "image": "defect_03.jpg",
+      "outcome": "PASS",
+      "status_reached": "draft_ready",
+      "verdict_counts": {
+        "supported": 1,
+        "rejected": 3,
+        "inconclusive": 1
+      },
+      "elapsed_s": 30.1,
+      "reason": ""
+    },
+    {
+      "name": "good lot",
+      "lot": "L2590",
+      "image": "defect_03.jpg",
+      "outcome": "PASS",
+      "status_reached": "draft_ready",
+      "verdict_counts": {
+        "supported": 1,
+        "rejected": 3,
+        "inconclusive": 1
+      },
+      "elapsed_s": 54.2,
+      "reason": ""
+    },
+    {
+      "name": "good lot",
+      "lot": "L2601",
+      "image": "defect_03.jpg",
+      "outcome": "PASS",
+      "status_reached": "insufficient_evidence",
+      "verdict_counts": {
+        "rejected": 4,
+        "inconclusive": 1
+      },
+      "elapsed_s": 36.2,
+      "reason": ""
+    },
+    {
+      "name": "line 1 lot",
+      "lot": "L2605",
+      "image": "defect_03.jpg",
+      "outcome": "FAIL",
+      "status_reached": "insufficient_evidence",
+      "verdict_counts": {},
+      "elapsed_s": 10.1,
+      "reason": "expected >= 1 rejected verdicts, got 0"
+    },
+    {
+      "name": "no defect",
+      "lot": "L2611",
+      "image": "no_defect_01.jpg",
+      "outcome": "PASS",
+      "status_reached": "insufficient_evidence",
+      "verdict_counts": {},
+      "elapsed_s": 8.0,
+      "reason": ""
+    }
+  ]
+}

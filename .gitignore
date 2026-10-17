@@ -16,3 +16,7 @@ frontend/dist/
 # run is what makes the demo survive a Vertex quota refusal, so it must be committed.
 !backend/data/out/replay/
 !backend/data/out/replay/*.json
+
+# The seven-case harness's result summary is evidence the gate was actually run, not
+# just generated output to regenerate on demand -- keep the latest run committed.
+!backend/data/out/run_cases.json
