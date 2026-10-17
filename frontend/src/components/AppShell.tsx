@@ -106,7 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       <footer
-        className="px-4 py-3 text-xs opacity-60 border-t shrink-0"
+        className="px-4 py-2 text-[11px] opacity-50 border-t shrink-0"
         style={{ borderColor: "var(--line)" }}
       >
         Synthetic demo data · Built with Gemini on Google Cloud
