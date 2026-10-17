@@ -11,6 +11,7 @@ frontend/node_modules/
 frontend/dist/
 .DS_Store
 .pytest_cache/
+.firebase/
 
 # Replay recordings are demo infrastructure, not generated output: the recorded golden
 # run is what makes the demo survive a Vertex quota refusal, so it must be committed.
