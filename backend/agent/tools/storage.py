@@ -30,4 +30,19 @@ def put_bytes(data: bytes, key: str, content_type: str = "application/octet-stre
 
 
 def get_local_path(key: str) -> Path:
-    return LOCAL_DIR / key
+    """Resolve `key` under LOCAL_DIR, refusing anything that escapes it.
+
+    The public `/api/files/{key:path}` route in main.py serves whatever this returns
+    with no auth other than the demo code, so a path that climbs out of LOCAL_DIR
+    would let anyone read arbitrary files off the container (confirmed exploitable:
+    `GET /api/files/%2e%2e/%2e%2e/%2e%2e/pyproject.toml` returned the file before this
+    check existed — the percent-encoded `..` survives Starlette's own path routing,
+    where a literal `../` in the URL would already have been normalised away). A plain
+    `key.startswith("..")` check is not enough for the same reason: it only catches the
+    decoded literal, not an encoded or otherwise disguised equivalent. Resolving the
+    path and checking containment with `is_relative_to` is robust to both.
+    """
+    path = (LOCAL_DIR / key).resolve()
+    if not path.is_relative_to(LOCAL_DIR.resolve()):
+        raise ValueError("path escapes the files directory")
+    return path

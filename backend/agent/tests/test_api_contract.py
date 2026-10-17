@@ -75,6 +75,21 @@ def test_the_uploaded_photo_is_saved_and_fetchable(client):
     assert photo.content == image_bytes
 
 
+def test_percent_encoded_traversal_is_blocked_with_a_plain_404(client):
+    """The deployed service runs --allow-unauthenticated and this route is public, so
+    a traversal here is a real file-read vulnerability, not a theoretical one.
+    Verified exploitable before the fix: Starlette decodes `%2e%2e` to `..` while
+    routing `/api/files/{key:path}`, which survives all the way into
+    get_local_path's `key` argument -- a plain `../` in the URL would already have
+    been normalised by then, but the percent-encoded form is not. This hits the
+    route with the literal percent-encoded string (not a pre-decoded one) to prove
+    the fix holds at the actual HTTP boundary an attacker would use, and asserts 404
+    specifically -- not 400 -- because a blocked traversal attempt must be
+    indistinguishable from an ordinary miss."""
+    resp = client.get("/api/files/%2e%2e/%2e%2e/%2e%2e/pyproject.toml")
+    assert resp.status_code == 404
+
+
 def test_creating_without_an_image_is_rejected(client):
     resp = client.post("/api/investigations",
                        data={"complaint_id": "C-2026-031", "lot_id": "L2611",

@@ -193,7 +193,14 @@ def memory():
 
 @app.get("/api/files/{key:path}")
 def files(key: str):
-    path = get_local_path(key)
+    # get_local_path raises ValueError for a key that resolves outside LOCAL_DIR (a
+    # path-traversal attempt, e.g. a percent-encoded "..") -- that must 404 exactly
+    # like a miss, not 400, so a traversal attempt is indistinguishable from a file
+    # that simply doesn't exist (no information leak about which paths are blocked).
+    try:
+        path = get_local_path(key)
+    except ValueError:
+        raise HTTPException(404, "not found")
     if not path.exists():
         raise HTTPException(404, "not found")
     return FileResponse(path)
