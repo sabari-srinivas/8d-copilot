@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getInvestigation, resolveApiUrl } from "../api/client";
+import { isInFlight, workingLabel } from "../api/capability";
+import type { AgentEvent } from "../api/types";
 import { useInvestigationStream } from "../api/useInvestigationStream";
 import { DefectPhoto } from "../components/DefectPhoto";
 import { HypothesisCard } from "../components/HypothesisCard";
@@ -38,11 +40,13 @@ function WarningsNote({ warnings }: { warnings: string[] }) {
 function StatusBanner({
   status,
   errorMessage,
+  events,
   onReview,
   onEvidence,
 }: {
   status: string;
   errorMessage: string | null;
+  events: AgentEvent[];
   onReview: () => void;
   onEvidence: () => void;
 }) {
@@ -87,10 +91,11 @@ function StatusBanner({
       </div>
     );
   }
+  const inFlight = isInFlight(events);
   return (
-    <div className="card p-4 flex items-center gap-2 text-sm">
-      <span className="inline-block h-2 w-2 rounded-full animate-pulse" style={{ background: "var(--green)" }} aria-hidden="true" />
-      Investigation in progress…
+    <div className="card p-4 flex items-center gap-2 text-sm" role="status" aria-live="polite">
+      <span className="inline-block h-2 w-2 rounded-full animate-pulse shrink-0" style={{ background: "var(--green)" }} aria-hidden="true" />
+      {inFlight ? workingLabel(inFlight) : "Investigation in progress…"}
     </div>
   );
 }
@@ -122,6 +127,7 @@ export function LiveInvestigation() {
       <StatusBanner
         status={stream.status}
         errorMessage={stream.errorMessage}
+        events={stream.events}
         onReview={() => navigate(`/inv/${id}/review`)}
         onEvidence={() => navigate(`/inv/${id}/evidence`)}
       />
@@ -163,7 +169,7 @@ export function LiveInvestigation() {
         <aside className="min-w-0">
           <h2 className="text-sm font-semibold opacity-80 mb-2">Agent trace</h2>
           <div className="card p-3 max-h-[70vh] overflow-y-auto">
-            <Timeline events={stream.events} />
+            <Timeline events={stream.events} done={stream.done} />
           </div>
         </aside>
       </div>
