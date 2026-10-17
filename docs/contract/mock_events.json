@@ -15,16 +15,24 @@
     "type": "tool_call",
     "title": "Reading complaint C-2026-031",
     "detail": "",
-    "data": { "tool": "read_complaint", "args": { "complaint_id": "C-2026-031" } }
+    "data": {
+      "tool": "read_complaint",
+      "args": {
+        "complaint_id": "C-2026-031"
+      }
+    }
   },
   {
     "seq": 2,
     "ts": "2026-10-16T10:02:01.200Z",
     "agent": "intake",
     "type": "tool_result",
-    "title": "Hoshino Denso (fictional) · ECU-PCB-7 · lot L2611 · 14 of 500",
+    "title": "Hoshino Denso (fictional) \u00b7 ECU-PCB-7 \u00b7 lot L2611 \u00b7 14 of 500",
     "detail": "Complaint parsed",
-    "data": { "tool": "read_complaint", "summary": "Hoshino Denso (fictional) · ECU-PCB-7 · lot L2611 · 14 of 500" }
+    "data": {
+      "tool": "read_complaint",
+      "summary": "Hoshino Denso (fictional) \u00b7 ECU-PCB-7 \u00b7 lot L2611 \u00b7 14 of 500"
+    }
   },
   {
     "seq": 3,
@@ -33,11 +41,52 @@
     "type": "tool_result",
     "title": "Read 9 rows from lot_traveler_line2_wk41.xlsx",
     "detail": "Traveler loaded for lot L2611",
-    "data": { "tool": "read_traveler", "summary": "Read 9 rows from lot_traveler_line2_wk41.xlsx" }
+    "data": {
+      "tool": "read_traveler",
+      "summary": "Read 9 rows from lot_traveler_line2_wk41.xlsx"
+    }
   },
   {
     "seq": 4,
     "ts": "2026-10-16T10:02:02.400Z",
+    "agent": "intake",
+    "type": "tool_call",
+    "title": "Listening to the shift lead's voice note (Gemini audio)",
+    "detail": "",
+    "data": {
+      "tool": "analyze_voice_note",
+      "args": {
+        "size_bytes": 195790
+      }
+    }
+  },
+  {
+    "seq": 5,
+    "ts": "2026-10-16T10:02:03.000Z",
+    "agent": "intake",
+    "type": "tool_result",
+    "title": "Voice note transcribed (English)",
+    "detail": "Every extracted field transcribed with confidence",
+    "data": {
+      "tool": "analyze_voice_note",
+      "summary": "Voice note transcribed (English)",
+      "language": "en-US",
+      "language_name": "English",
+      "transcript": "Bridging again on line two. Oven's been odd since the vendor came in on Wednesday.",
+      "translation": "Bridging again on line two. Oven's been odd since the vendor came in on Wednesday.",
+      "lot_or_line": "line two",
+      "observations": [
+        "Bridging again on line two."
+      ],
+      "maintenance_mentions": [
+        "Oven's been odd since the vendor came in on Wednesday."
+      ],
+      "low_confidence_fields": []
+    }
+  },
+  {
+    "seq": 6,
+    "ts": "2026-10-16T10:02:03.600Z",
     "agent": "vision",
     "type": "step_started",
     "title": "Looking at the defect photo",
@@ -45,8 +94,8 @@
     "data": {}
   },
   {
-    "seq": 5,
-    "ts": "2026-10-16T10:02:03.000Z",
+    "seq": 7,
+    "ts": "2026-10-16T10:02:04.200Z",
     "agent": "vision",
     "type": "tool_result",
     "title": "Defect classified: solder bridge",
@@ -54,14 +103,19 @@
     "data": {
       "type": "solder_bridge",
       "severity": "major",
-      "box": [0.41, 0.36, 0.17, 0.12],
+      "box": [
+        0.41,
+        0.36,
+        0.17,
+        0.12
+      ],
       "confidence": 0.86,
       "visual_evidence": "Continuous bright solder joining two adjacent fine-pitch pads."
     }
   },
   {
-    "seq": 6,
-    "ts": "2026-10-16T10:02:03.600Z",
+    "seq": 8,
+    "ts": "2026-10-16T10:02:04.800Z",
     "agent": "investigator",
     "type": "step_started",
     "title": "Checking quality memory",
@@ -69,17 +123,20 @@
     "data": {}
   },
   {
-    "seq": 7,
-    "ts": "2026-10-16T10:02:04.200Z",
+    "seq": 9,
+    "ts": "2026-10-16T10:02:05.400Z",
     "agent": "investigator",
     "type": "tool_result",
     "title": "No similar past case found",
     "detail": "",
-    "data": { "tool": "query_memory", "summary": "No similar past case found" }
+    "data": {
+      "tool": "query_memory",
+      "summary": "No similar past case found"
+    }
   },
   {
-    "seq": 8,
-    "ts": "2026-10-16T10:02:04.800Z",
+    "seq": 10,
+    "ts": "2026-10-16T10:02:06.000Z",
     "agent": "investigator",
     "type": "tool_result",
     "title": "Found maintenance event WO-388 on Line 2",
@@ -97,8 +154,8 @@
     }
   },
   {
-    "seq": 9,
-    "ts": "2026-10-16T10:02:05.400Z",
+    "seq": 11,
+    "ts": "2026-10-16T10:02:06.600Z",
     "agent": "investigator",
     "type": "hypothesis",
     "title": "H1: Stencil wear increasing solder volume",
@@ -113,8 +170,8 @@
     }
   },
   {
-    "seq": 10,
-    "ts": "2026-10-16T10:02:06.000Z",
+    "seq": 12,
+    "ts": "2026-10-16T10:02:07.200Z",
     "agent": "investigator",
     "type": "hypothesis_result",
     "title": "H1 rejected",
@@ -129,13 +186,16 @@
       "effect_unit": "prints",
       "n_defect": 6,
       "n_good": 58,
-      "group_labels": ["defect lots", "good lots"],
+      "group_labels": [
+        "defect lots",
+        "good lots"
+      ],
       "chart_url": null
     }
   },
   {
-    "seq": 11,
-    "ts": "2026-10-16T10:02:06.600Z",
+    "seq": 13,
+    "ts": "2026-10-16T10:02:07.800Z",
     "agent": "investigator",
     "type": "hypothesis",
     "title": "H2: Reflow peak temperature drift after WO-388",
@@ -150,8 +210,8 @@
     }
   },
   {
-    "seq": 12,
-    "ts": "2026-10-16T10:02:07.200Z",
+    "seq": 14,
+    "ts": "2026-10-16T10:02:08.400Z",
     "agent": "investigator",
     "type": "hypothesis_result",
     "title": "H2 supported",
@@ -160,19 +220,22 @@
       "hypothesis_id": "H2",
       "verdict": "supported",
       "test": "Welch t-test",
-      "p_value": 0.0000,
-      "effect": "+8.2 °C mean peak temp",
+      "p_value": 0.0,
+      "effect": "+8.2 \u00b0C mean peak temp",
       "effect_value": 8.2,
-      "effect_unit": "°C",
+      "effect_unit": "\u00b0C",
       "n_defect": 6,
       "n_good": 58,
-      "group_labels": ["defect lots", "good lots"],
+      "group_labels": [
+        "defect lots",
+        "good lots"
+      ],
       "chart_url": "/api/charts/mock_reflow.png"
     }
   },
   {
-    "seq": 13,
-    "ts": "2026-10-16T10:02:07.800Z",
+    "seq": 15,
+    "ts": "2026-10-16T10:02:09.000Z",
     "agent": "investigator",
     "type": "hypothesis",
     "title": "H3: Room humidity slowing flux activation",
@@ -187,8 +250,8 @@
     }
   },
   {
-    "seq": 14,
-    "ts": "2026-10-16T10:02:08.400Z",
+    "seq": 16,
+    "ts": "2026-10-16T10:02:09.600Z",
     "agent": "investigator",
     "type": "hypothesis_result",
     "title": "H3 rejected",
@@ -203,13 +266,16 @@
       "effect_unit": "%RH",
       "n_defect": 6,
       "n_good": 58,
-      "group_labels": ["defect lots", "good lots"],
+      "group_labels": [
+        "defect lots",
+        "good lots"
+      ],
       "chart_url": null
     }
   },
   {
-    "seq": 15,
-    "ts": "2026-10-16T10:02:09.000Z",
+    "seq": 17,
+    "ts": "2026-10-16T10:02:10.200Z",
     "agent": "investigator",
     "type": "hypothesis",
     "title": "H4: Operator change to OP-17",
@@ -224,8 +290,8 @@
     }
   },
   {
-    "seq": 16,
-    "ts": "2026-10-16T10:02:09.600Z",
+    "seq": 18,
+    "ts": "2026-10-16T10:02:10.800Z",
     "agent": "investigator",
     "type": "hypothesis_result",
     "title": "H4 inconclusive",
@@ -240,13 +306,16 @@
       "effect_unit": "share of OP-17 lots",
       "n_defect": 6,
       "n_good": 58,
-      "group_labels": ["defect lots", "good lots"],
+      "group_labels": [
+        "defect lots",
+        "good lots"
+      ],
       "chart_url": null
     }
   },
   {
-    "seq": 17,
-    "ts": "2026-10-16T10:02:10.200Z",
+    "seq": 19,
+    "ts": "2026-10-16T10:02:11.400Z",
     "agent": "evidence",
     "type": "citation",
     "title": "Citing PFMEA row 14",
@@ -255,12 +324,12 @@
       "label": "PFMEA row 14",
       "source": "pfmea.md",
       "ref": "Row 14",
-      "quote": "Row 14 — Failure mode: Solder bridging. Cause: Reflow peak temperature above profile limit. Prevention: Profile verification after any oven maintenance. Detection: AOI 100% + profile check per shift."
+      "quote": "Row 14 \u2014 Failure mode: Solder bridging. Cause: Reflow peak temperature above profile limit. Prevention: Profile verification after any oven maintenance. Detection: AOI 100% + profile check per shift."
     }
   },
   {
-    "seq": 18,
-    "ts": "2026-10-16T10:02:10.800Z",
+    "seq": 20,
+    "ts": "2026-10-16T10:02:12.000Z",
     "agent": "evidence",
     "type": "citation",
     "title": "Citing Control plan item 6",
@@ -269,21 +338,23 @@
       "label": "Control plan item 6",
       "source": "control_plan.md",
       "ref": "Item 6",
-      "quote": "Item 6 — Reflow profile verification after maintenance. Reflow peak temperature must be held within 235-250 °C per the qualified profile. Reaction plan: hold lots, re-profile."
+      "quote": "Item 6 \u2014 Reflow profile verification after maintenance. Reflow peak temperature must be held within 235-250 \u00b0C per the qualified profile. Reaction plan: hold lots, re-profile."
     }
   },
   {
-    "seq": 19,
-    "ts": "2026-10-16T10:02:11.400Z",
+    "seq": 21,
+    "ts": "2026-10-16T10:02:12.600Z",
     "agent": "writer",
     "type": "draft_ready",
     "title": "8D draft ready for review",
     "detail": "",
-    "data": { "status": "draft_ready" }
+    "data": {
+      "status": "draft_ready"
+    }
   },
   {
-    "seq": 20,
-    "ts": "2026-10-16T10:02:12.000Z",
+    "seq": 22,
+    "ts": "2026-10-16T10:02:13.200Z",
     "agent": "system",
     "type": "done",
     "title": "Investigation complete",

@@ -16,7 +16,7 @@ Base: `{API_URL}/api`
    8D being rejected, or `null` for a non-rejection. Starting an investigation against
    a rejection (`POST /investigations` with that `complaint_id`) runs the revise path
    (`agent="reviser"` events, see below) instead of drafting from scratch.
-2. `POST /investigations` (multipart: `image`, `complaint_id`, `complaint_text`, `lot_id`, optional `traveler` xlsx) → `{ "id": "inv_123", "status": "running" }`
+2. `POST /investigations` (multipart: `image`, `complaint_id`, `complaint_text`, `lot_id`, optional `traveler` xlsx, optional `voice_note` audio file — CR #12) → `{ "id": "inv_123", "status": "running" }`. `voice_note` is a recorded shift-lead remark (wav/mp3/aac/ogg/flac — anything Gemini's audio understanding accepts); file upload only, there is no live-microphone recording in this product. When present it is read by `agent/agents/intake.py` via `agent/tools/voice_tool.analyze_voice_note` (a Gemini audio call, threaded like every other model call — see `agent/agents/__init__.py`) and carried onto the investigation as `voice_note` (`VoiceNote`, below).
 3. `GET /investigations/{id}/events` (SSE). Each event:
    ```json
    { "seq": 4, "ts": "2026-10-16T10:02:11Z",
@@ -52,12 +52,21 @@ Base: `{API_URL}/api`
    writer's.
 
    `verdict` is a four-way, CAPA-specific vocabulary (distinct from `hypothesis_result.verdict`'s `supported|rejected|inconclusive`) because "did this fix work" has an honest fourth answer a single significance test cannot express: `worked` (the rate dropped and stayed down), `never_worked` (no significant, meaningful drop — including a rate that rose, which is never "worked" however significant), `regressed` (it dropped, then climbed back), `insufficient_data` (too few lots on one side to say anything — never guessed). `p_value`/`effect_value`/`effect` carry whichever comparison decided the verdict (before-vs-immediate for `never_worked`, before-vs-recent for `worked`/`regressed`); `p_immediate`/`p_recent` are always both present except for `insufficient_data`, where every numeric field is `null`.
-4. `GET /investigations/{id}` → full state: `status` (`running | draft_ready | approved | insufficient_evidence | failed`), `defect {type, severity, box[x,y,w,h], confidence, visual_evidence}`, `hypotheses[]`, `eight_d {D1..D8: {text, citations[{label, source, ref}]}}`, `proposed_actions[{id, kind: capa|hold|work_order|customer_reply, summary}]`. `failed` means the run raised an exception before reaching a verdict; `missing_data[0]` carries the error message, and the event stream still ends `error` then `done` — a client polling this endpoint must stop on `failed` rather than spin forever.
+4. `GET /investigations/{id}` → full state: `status` (`running | draft_ready | approved | insufficient_evidence | failed`), `defect {type, severity, box[x,y,w,h], confidence, visual_evidence}`, `hypotheses[]`, `eight_d {D1..D8: {text, citations[{label, source, ref}]}}`, `proposed_actions[{id, kind: capa|hold|work_order|customer_reply, summary}]`. `failed` means the run raised an exception before reaching a verdict; `missing_data[0]` carries the error message, and the event stream still ends `error` then `done` — a client polling this endpoint must stop on `failed` rather than spin forever. `voice_note` (CR #12) is `null` when no `voice_note` upload was attached to `POST /investigations`, otherwise a `VoiceNote`:
+   ```json
+   { "language": "ta-IN", "language_name": "Tamil",
+     "transcript": "...original-script transcript...",
+     "translation": "...English translation, always present, equal to transcript when already English...",
+     "lot_or_line": "line 2", "observations": ["Bridging again on line 2."],
+     "maintenance_mentions": ["Oven hasn't been right since the vendor came on Wednesday."],
+     "low_confidence_fields": [] }
+   ```
+   Gemini reads audio natively (no separate speech-to-text step) and reports whichever language it hears — `language`/`language_name` are never forced to English, and `translation` is always populated so the UI never has to translate client-side. `low_confidence_fields` names any of `lot_or_line`/`observations`/`maintenance_mentions` the model is not sure it heard correctly (a half-heard lot number, background noise) — same convention as `TravelerRow.low_confidence_fields`, and the UI should flag it the same way. `observations` and `maintenance_mentions` are also folded into the same "shift-lead notes" string the lot traveler's `remarks` column already feeds the investigator's hypothesis step — a voice note is extra evidence into the same pipeline, not a parallel channel.
 5. `POST /investigations/{id}/approve` body `{ "approver": "Priya R.", "edits": {"D4": "..."}, "rejected_action_ids": ["A3"], "note": "..." }` → `{ "capa_id", "hold_id", "work_order_id", "replies": {"ja", "en"}, "memory_id", "rejected_action_ids" }`. The response echoes back `rejected_action_ids` (same ids the request sent) so a client can tell "excluded at review" apart from "attempted and failed" — `replies` is null in both cases (the customer-reply Gemini call degrades to null on failure rather than raising), and only membership in the echoed `rejected_action_ids` proves which one happened.
 6. `GET /memory` → saved confirmed causes.
 7. `GET /health` → `{ "ok": true, "model": "<GEMINI_MODEL>" }`
 
-Commit `mock_events.json` (21 events for the golden path) and `mock_investigation.json` so the UI can be built with `VITE_USE_MOCKS=true` (replay one event every 600 ms).
+Commit `mock_events.json` (23 events for the golden path, including the voice-note `tool_call`/`tool_result` pair — CR #12) and `mock_investigation.json` (carries a sample `voice_note`) so the UI can be built with `VITE_USE_MOCKS=true` (replay one event every 600 ms).
 
 The table below lets the UI switch on `type` exhaustively:
 
