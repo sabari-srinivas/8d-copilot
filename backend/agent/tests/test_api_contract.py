@@ -104,6 +104,20 @@ def test_percent_encoded_traversal_is_blocked_with_a_plain_404(client):
     assert resp.status_code == 404
 
 
+def test_creating_an_investigation_accepts_an_optional_voice_note(client):
+    """CR #12: voice_note is a third optional upload, alongside traveler, on the same
+    endpoint -- proves the multipart field is wired through without needing a live
+    model call (run_investigation itself is stubbed by the `client` fixture)."""
+    resp = client.post(
+        "/api/investigations",
+        files={"image": ("tiny.jpg", (FX / "tiny.jpg").read_bytes(), "image/jpeg"),
+               "voice_note": ("note.wav", b"RIFF-fake-wav-bytes", "audio/wav")},
+        data={"complaint_id": "C-2026-031", "lot_id": "L2611",
+              "complaint_text": "solder bridging"})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "running"
+
+
 def test_creating_without_an_image_is_rejected(client):
     resp = client.post("/api/investigations",
                        data={"complaint_id": "C-2026-031", "lot_id": "L2611",

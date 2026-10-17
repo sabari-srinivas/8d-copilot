@@ -120,12 +120,17 @@ async def create_investigation(
         complaint_id: str = Form(""),
         complaint_text: str = Form(""),
         lot_id: str = Form(...),
-        traveler: UploadFile | None = File(None)):
+        traveler: UploadFile | None = File(None),
+        # CR #12: an optional shift-lead voice note, alongside the photo and the
+        # spreadsheet. Audio file upload only -- no live microphone recording, per CR #12.
+        voice_note: UploadFile | None = File(None)):
     inv_id = await start(
         complaint_id=complaint_id, lot_id=lot_id,
         image_bytes=await image.read(), mime_type=image.content_type or "image/jpeg",
         complaint_text=complaint_text,
-        traveler_bytes=await traveler.read() if traveler else None)
+        traveler_bytes=await traveler.read() if traveler else None,
+        voice_bytes=await voice_note.read() if voice_note else None,
+        voice_mime=(voice_note.content_type or "audio/wav") if voice_note else "audio/wav")
     task = asyncio.create_task(_run(inv_id))
     _tasks.add(task)
     task.add_done_callback(_tasks.discard)

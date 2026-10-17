@@ -18,7 +18,8 @@ from agent.agents import investigator as inv_agent
 from agent.agents import reviser as reviser_agent
 from agent.agents import writer as writer_agent
 from agent.events import bus
-from agent.models import (Complaint, Defect, EightD, EightDSection, Hypothesis, Passage)
+from agent.models import (Complaint, Defect, EightD, EightDSection, Hypothesis, Passage,
+                          VoiceNote)
 from agent.state import MemoryStateStore
 from agent.tools.doc_search import chunk_documents
 from data.constants import DRIFT_LOT_IDS, GOLDEN_LOT
@@ -419,6 +420,75 @@ async def test_a_rejection_complaint_is_revised_not_redrafted(wired, monkeypatch
     types_and_agents = [(e.agent, e.type) for e in bus.history(inv_id)]
     assert ("reviser", "draft_ready") in types_and_agents
     assert ("writer", "draft_ready") not in types_and_agents
+
+
+# --- CR #12: voice note intake --------------------------------------------------
+
+
+VOICE_NOTE = VoiceNote(
+    language="en-US", language_name="English",
+    transcript="Bridging again on line two. Oven's been odd since the vendor came in "
+               "on Wednesday.",
+    translation="Bridging again on line two. Oven's been odd since the vendor came in "
+                "on Wednesday.",
+    lot_or_line="line two", observations=["Bridging again on line two."],
+    maintenance_mentions=["Oven's been odd since the vendor came in on Wednesday."],
+    low_confidence_fields=[])
+
+
+@pytest.mark.asyncio
+async def test_no_voice_note_uploaded_leaves_it_none(wired, monkeypatch):
+    """No voice_bytes at all -- the common case -- must not call the voice tool and
+    must leave Investigation.voice_note as None, not an empty VoiceNote."""
+    def boom(*a, **k):
+        raise AssertionError("analyze_voice_note must not be called with no upload")
+    monkeypatch.setattr(intake_agent, "analyze_voice_note", boom)
+    inv = wired.get_investigation(await _run())
+    assert inv.voice_note is None
+
+
+@pytest.mark.asyncio
+async def test_a_voice_note_is_transcribed_and_carried_onto_the_investigation(wired, monkeypatch):
+    monkeypatch.setattr(intake_agent, "analyze_voice_note", lambda *a, **k: VOICE_NOTE)
+    inv_id = await _run(voice_bytes=b"fake wav bytes", voice_mime="audio/wav")
+    inv = wired.get_investigation(inv_id)
+    assert inv.voice_note is not None
+    assert inv.voice_note.language_name == "English"
+    assert inv.voice_note.lot_or_line == "line two"
+    assert inv.voice_note.observations == ["Bridging again on line two."]
+
+    types_and_tools = [(e.type, e.data.get("tool")) for e in bus.history(inv_id)]
+    assert ("tool_call", "analyze_voice_note") in types_and_tools
+    assert ("tool_result", "analyze_voice_note") in types_and_tools
+
+
+@pytest.mark.asyncio
+async def test_voice_note_observations_reach_the_investigator_as_shift_lead_notes(
+        wired, monkeypatch):
+    """The investigator's hypothesis prompt reads a single 'shift-lead notes' string --
+    a voice note's extracted observations/maintenance mentions must land in it exactly
+    like the traveler's free-text remarks already do."""
+    monkeypatch.setattr(intake_agent, "analyze_voice_note", lambda *a, **k: VOICE_NOTE)
+    captured = {}
+
+    def capture(prompt, schema, **kwargs):
+        captured["prompt"] = prompt
+        return inv_agent.HypothesisList(hypotheses=HYPOTHESES)
+    monkeypatch.setattr(inv_agent, "generate_structured", capture)
+    await _run(voice_bytes=b"fake wav bytes", voice_mime="audio/wav")
+    assert "Oven's been odd since the vendor came in on Wednesday." in captured["prompt"]
+
+
+@pytest.mark.asyncio
+async def test_no_audio_bytes_reach_the_event_stream(wired, monkeypatch):
+    """CLAUDE.md rule 6: no secrets, no raw upload bytes, in logs or events -- the audio
+    equivalent of test_no_image_bytes_reach_the_event_stream above."""
+    monkeypatch.setattr(intake_agent, "analyze_voice_note", lambda *a, **k: VOICE_NOTE)
+    marker = b"SECRETAUDIOBYTES" * 10
+    inv_id = await _run(voice_bytes=marker, voice_mime="audio/wav")
+    for event in bus.history(inv_id):
+        blob = json.dumps(event.model_dump())
+        assert "SECRETAUDIOBYTES" not in blob
 
 
 @pytest.mark.asyncio

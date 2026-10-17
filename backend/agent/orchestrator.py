@@ -41,10 +41,12 @@ def format_error_message(exc: BaseException) -> str:
 
 
 async def start(*, complaint_id: str, lot_id: str, image_bytes: bytes, mime_type: str,
-                complaint_text: str, traveler_bytes: bytes | None = None) -> str:
+                complaint_text: str, traveler_bytes: bytes | None = None,
+                voice_bytes: bytes | None = None, voice_mime: str = "audio/wav") -> str:
     inv_id = f"inv_{uuid.uuid4().hex[:8]}"
     _uploads[inv_id] = {"image": image_bytes, "mime": mime_type,
-                        "complaint_text": complaint_text, "traveler": traveler_bytes}
+                        "complaint_text": complaint_text, "traveler": traveler_bytes,
+                        "voice": voice_bytes, "voice_mime": voice_mime}
     # The uploaded photo itself (as opposed to the vision agent's reading of it) has to
     # be saved through the same files backend as the stats charts (agent/tools/storage.py)
     # so the UI has a URL to show it from — PRD 143: "Shown on the photo as soon as it
@@ -124,11 +126,13 @@ async def run_investigation(inv_id: str) -> None:
         # background after the request that started it has already failed.
         intake_task = asyncio.create_task(intake.run(
             inv_id, upload.get("complaint_text", ""), inv.complaint_id,
-            upload.get("traveler")))
+            upload.get("traveler"), upload.get("voice"),
+            upload.get("voice_mime", "audio/wav")))
         vision_task = asyncio.create_task(
             vision.run(inv_id, upload["image"], upload.get("mime", "image/jpeg")))
         try:
-            (complaint, traveler_rows), defect = await asyncio.gather(intake_task, vision_task)
+            (complaint, traveler_rows, voice_note), defect = await asyncio.gather(
+                intake_task, vision_task)
         except Exception:
             for task in (intake_task, vision_task):
                 if not task.done():
@@ -152,6 +156,7 @@ async def run_investigation(inv_id: str) -> None:
             raise
 
         inv.traveler_rows = traveler_rows
+        inv.voice_note = voice_note
         inv.defect = defect
         await asyncio.to_thread(state.save_investigation, inv)
 
@@ -180,7 +185,16 @@ async def run_investigation(inv_id: str) -> None:
                               data={"status": "insufficient_evidence"})
             return
 
-        note = " | ".join(r.remarks for r in traveler_rows if r.remarks)
+        # CR #12: the voice note's extracted observations and maintenance mentions are
+        # "shift-lead notes" in exactly the same sense the traveler's free-text remarks
+        # column is -- both go into the SAME note string the investigator's hypothesis
+        # prompt reads, so a half-heard spreadsheet cell and a recorded remark carry
+        # equal weight as context, not a parallel channel the model never sees.
+        notes = [r.remarks for r in traveler_rows if r.remarks]
+        if voice_note is not None:
+            notes.extend(voice_note.observations)
+            notes.extend(voice_note.maintenance_mentions)
+        note = " | ".join(notes)
         inv.hypotheses, inv.results, inv.memory_hits = await investigator.run(
             inv_id, inv.lot_id, inv.defect, note)
         # Threaded (task 14): under PLANT_BACKEND=bigquery this is a network call.
