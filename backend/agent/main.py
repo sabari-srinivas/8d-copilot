@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,14 +14,31 @@ from agent.events import TERMINAL, bus
 from agent.orchestrator import format_error_message, run_investigation, start
 from agent.state import get_state
 from agent.tools.intake_tools import list_complaints
-from agent.tools.memory import list_quality_memory
+from agent.tools.memory import list_quality_memory, seed_historical_quality_memory
 from agent.tools.storage import get_local_path
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger(__name__)
 
-app = FastAPI(title="8D Copilot API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Runs once, before the server accepts any request -- not per-request, so this is
+    the one place in the codebase a blocking embedding call is NOT routed through
+    asyncio.to_thread (see agent/agents/__init__.py): nothing is waiting on the event
+    loop yet. Degrade, don't explode: a demo that starts with no quality-memory history
+    (e.g. no embedding credentials in a bare dev environment) must still serve every
+    other route, the same "best-effort" posture agent/agents/actions.py already uses
+    for the customer-reply and quality-memory calls on the approval path."""
+    try:
+        seed_historical_quality_memory()
+    except Exception as exc:
+        log.warning("historical quality-memory seed failed: %s", exc.__class__.__name__)
+    yield
+
+
+app = FastAPI(title="8D Copilot API", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
 

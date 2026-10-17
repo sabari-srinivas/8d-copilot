@@ -10,7 +10,11 @@ PLANT_BACKEND=bigquery they are network calls, not millisecond CSV reads, and
 `joined()` cache only covers the lots+process join, not maintenance). `test_hypothesis`
 is threaded for the same reason even though its own numpy/scipy work is local: it calls
 `get_maintenance_events` (event hypotheses) and `render_reflow_chart` ->
-`agent.tools.storage.put_bytes`, which is a GCS upload under FILES_BACKEND=gcs."""
+`agent.tools.storage.put_bytes`, which is a GCS upload under FILES_BACKEND=gcs.
+`verify_capa_effectiveness` (agent/tools/capa_check.py) is threaded for the same reason:
+it calls `get_capa_defect_series`, which reads a PlantStore table and, for a CAPA with
+no seed row, falls back to `joined()` -- either path is a network call under
+PLANT_BACKEND=bigquery."""
 import asyncio
 import logging
 
@@ -18,6 +22,7 @@ from pydantic import BaseModel, Field
 
 from agent.events import bus
 from agent.models import Defect, Hypothesis, HypothesisResult, MemoryEntry
+from agent.tools.capa_check import verify_capa_effectiveness
 from agent.tools.llm import generate_structured, load_prompt
 from agent.tools.memory import search_quality_memory
 from agent.tools.plant_data import get_lot_genealogy, get_maintenance_events, get_process_window
@@ -64,6 +69,21 @@ async def run(inv_id: str, lot_id: str, defect: Defect,
         await bus.publish(inv_id, "investigator", "memory_hit",
                           f"Similar past case found: {hit.capa_id}",
                           detail=hit.root_cause, data=hit.model_dump())
+        # "Similar past case found" is not the same claim as "that case's fix worked" --
+        # the PRD's whole complaint is that nobody checks the second one. `created` is
+        # reused as "when this CAPA was implemented": it is set the moment
+        # save_quality_memory (a live approval) or the historical seed runs, which is
+        # exactly when the corrective action went into effect. A hit with no capa_id
+        # (no CAPA was raised for that past cause) or no line (nothing to compare
+        # before/after on) has nothing to check.
+        if hit.capa_id and hit.line and hit.created:
+            effectiveness = await asyncio.to_thread(
+                verify_capa_effectiveness, hit.capa_id, hit.defect_type, hit.line,
+                hit.created[:10])
+            await bus.publish(
+                inv_id, "investigator", "capa_effectiveness",
+                f"{hit.capa_id} {effectiveness.verdict.replace('_', ' ')}",
+                detail=effectiveness.effect, data=effectiveness.model_dump())
     if not hits:
         await bus.publish(inv_id, "investigator", "tool_result", "No similar past case found",
                           data={"tool": "search_quality_memory",

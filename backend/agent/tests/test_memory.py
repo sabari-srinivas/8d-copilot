@@ -44,3 +44,29 @@ def test_a_different_defect_type_does_not_match():
 
 def test_empty_memory_returns_empty_not_an_error():
     assert mem.search_quality_memory("solder_bridge", "anything") == []
+
+
+def test_seeding_the_historical_capa_makes_it_findable():
+    mid = mem.seed_historical_quality_memory()
+    assert mid == mem.HISTORICAL_SEED_ID
+    hits = mem.search_quality_memory("tombstoning", "tombstoning paste age")
+    assert hits and hits[0].capa_id == "CAPA-0098" and hits[0].line == "L1"
+
+
+def test_seeding_twice_is_a_no_op():
+    first = mem.seed_historical_quality_memory()
+    second = mem.seed_historical_quality_memory()
+    assert first == mem.HISTORICAL_SEED_ID
+    assert second is None
+    assert len(mem.list_quality_memory()) == 1
+
+
+def test_the_seeded_entry_never_collides_with_the_live_counter():
+    """HISTORICAL_SEED_ID must not be something next_id("memory") could ever produce
+    for a real approval -- see save_quality_memory's next_id("memory") call."""
+    mem.seed_historical_quality_memory()
+    live_id = mem.save_quality_memory(investigation_id="inv_1", defect_type="solder_bridge",
+                                      root_cause="Reflow peak temperature drift",
+                                      capa_id="CAPA-0142")
+    assert live_id != mem.HISTORICAL_SEED_ID
+    assert live_id == "MEM-0001"
