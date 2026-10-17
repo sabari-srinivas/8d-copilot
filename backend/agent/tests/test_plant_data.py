@@ -140,6 +140,52 @@ def test_capa_defect_series_falls_back_to_joined_for_a_live_capa():
         assert row.rate == pytest.approx(joined_bridge[row.lot_id])
 
 
+def test_bigquery_store_capa_lots_goes_through_stringify_dates(monkeypatch):
+    """BigQueryPlantStore.capa_lots() must funnel through the same _stringify_dates
+    boundary as every other table (lots/process/maintenance/complaints). capa_lots.csv
+    has its own `date` column (data/generate_plant.py), and `bq load --autodetect`
+    infers it as BigQuery DATE just like the others -- confirmed live against
+    d-copilot-2026.plant.capa_lots (`bq show --schema` reports `date: DATE`). Without
+    this, get_capa_defect_series/verify_capa_effectiveness would hand a raw
+    datetime.date through to callers under PLANT_BACKEND=bigquery while the CSV
+    backend hands a plain string -- the exact task-14 trap (broke json.dumps for the
+    SSE stream and Firestore's append_event) hitting a different table.
+
+    Hermetic: `google.cloud.bigquery.Client` is replaced with a fake that returns a
+    `dbdate`-typed frame, mirroring what the real client's `to_dataframe()` yields, so
+    nothing here talks to the network or needs PLANT_BACKEND=bigquery at import time.
+    """
+    import datetime
+    from types import SimpleNamespace
+
+    fake_df = pd.DataFrame({
+        "capa_id": ["CAPA-0098"], "lot_id": ["L2380"],
+        "date": pd.Series([datetime.date(2026, 6, 1)], dtype="dbdate"),
+    })
+
+    class FakeQueryJob:
+        def to_dataframe(self):
+            return fake_df
+
+    class FakeClient:
+        def __init__(self, project=None):
+            self.project = project
+
+        def query(self, sql):
+            assert "capa_lots" in sql
+            return FakeQueryJob()
+
+    monkeypatch.setattr("google.cloud.bigquery.Client", FakeClient)
+    monkeypatch.setattr(pd_tools, "get_settings",
+                        lambda: SimpleNamespace(gcp_project="fake-project", bq_dataset="plant"))
+
+    df = pd_tools.BigQueryPlantStore().capa_lots()
+
+    assert df["date"].tolist() == ["2026-06-01"]
+    assert all(isinstance(v, str) for v in df["date"])
+    assert json.dumps(df.to_dict("records"))  # raises TypeError if still a date object
+
+
 def test_reset_caches_clears_both_lru_caches():
     store_before = pd_tools.get_store()
     cached_before = pd_tools._joined_cached()
