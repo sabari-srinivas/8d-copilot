@@ -106,6 +106,76 @@ export function Evidence() {
         </div>
       </section>
 
+      {inv.voice_note && (
+        <section>
+          <h2 className="text-sm font-semibold opacity-80 mb-1">Shift lead voice note</h2>
+          <p className="mb-2">
+            <ProvenanceTag tone="ai">
+              AI — Gemini multimodal audio, heard in {inv.voice_note.language_name || "an unidentified language"}
+            </ProvenanceTag>
+          </p>
+          <div className="card p-4 flex flex-col gap-3 text-sm">
+            {inv.voice_note.lot_or_line && (
+              <p>
+                <span className="opacity-60">Referring to: </span>
+                <span className="mono">{inv.voice_note.lot_or_line}</span>
+                {inv.voice_note.low_confidence_fields.includes("lot_or_line") && (
+                  <span className="ml-2 text-xs font-medium" style={{ color: "var(--amber)" }}>
+                    unclear — confirm before relying on this
+                  </span>
+                )}
+              </p>
+            )}
+
+            {inv.voice_note.observations.length > 0 && (
+              <div>
+                <p className="opacity-60 mb-1">Observations</p>
+                <ul className="list-disc pl-5">
+                  {inv.voice_note.observations.map((o, i) => (
+                    <li key={i}>{o}</li>
+                  ))}
+                </ul>
+                {inv.voice_note.low_confidence_fields.includes("observations") && (
+                  <p className="text-xs mt-1" style={{ color: "var(--amber)" }}>
+                    Flagged — not fully confident in this transcription.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {inv.voice_note.maintenance_mentions.length > 0 && (
+              <div>
+                <p className="opacity-60 mb-1">Maintenance mentioned</p>
+                <ul className="list-disc pl-5">
+                  {inv.voice_note.maintenance_mentions.map((m, i) => (
+                    <li key={i}>{m}</li>
+                  ))}
+                </ul>
+                {inv.voice_note.low_confidence_fields.includes("maintenance_mentions") && (
+                  <p className="text-xs mt-1" style={{ color: "var(--amber)" }}>
+                    Flagged — not fully confident in this transcription.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div>
+              <p className="opacity-60 mb-1">
+                Transcript{inv.voice_note.language_name ? ` (${inv.voice_note.language_name})` : ""}
+              </p>
+              <p className="italic">&ldquo;{inv.voice_note.transcript}&rdquo;</p>
+            </div>
+
+            {inv.voice_note.translation && inv.voice_note.translation !== inv.voice_note.transcript && (
+              <div>
+                <p className="opacity-60 mb-1">English translation</p>
+                <p className="italic">&ldquo;{inv.voice_note.translation}&rdquo;</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       <section>
         <h2 className="text-sm font-semibold opacity-80 mb-1">Citations</h2>
         <p className="mb-2">

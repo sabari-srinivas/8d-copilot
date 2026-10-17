@@ -66,6 +66,13 @@ export function describeStep(event: AgentEvent): StepDescription | null {
       if (tool.includes("traveler")) {
         return { text: "Spreadsheet parsed deterministically, not AI", kind: "computed" };
       }
+      // CR #12: the voice note is a genuinely different capability from the text
+      // complaint parse below it (Gemini's native audio understanding, not a
+      // separate speech-to-text step), so it gets its own label — same reasoning as
+      // vision's "Gemini multimodal vision" rather than a generic "AI" catch-all.
+      if (tool.includes("voice")) {
+        return { text: "Gemini multimodal audio — transcription + extraction", kind: "ai" };
+      }
       return { text: "Structured output, schema-validated", kind: "ai" };
 
     case "investigator": {

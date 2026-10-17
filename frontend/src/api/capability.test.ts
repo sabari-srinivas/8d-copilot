@@ -30,6 +30,14 @@ describe("describeStep — golden path fixture", () => {
     expect(step?.text).toMatch(/not AI/i);
   });
 
+  it("names the voice note's capability as Gemini multimodal audio, tagged AI (CR #12)", () => {
+    const call = describeStep(find("intake", "tool_call", 4));
+    expect(call).toEqual({ text: "Gemini multimodal audio — transcription + extraction", kind: "ai" });
+    const result = describeStep(find("intake", "tool_result", 5));
+    expect(result?.kind).toBe("ai");
+    expect(result?.text).toMatch(/audio/i);
+  });
+
   it("names the quality-memory check as vector similarity search, tagged AI", () => {
     const step = describeStep(find("investigator", "step_started"));
     expect(step?.kind).toBe("ai");
@@ -58,7 +66,7 @@ describe("describeStep — golden path fixture", () => {
   it("names evidence's document search as embedding search, tagged AI", () => {
     // The golden path fixture only carries evidence's `citation` events (see
     // docs/contract/README.md's type table) — `step_started`/`tool_call` for this agent
-    // are real shapes agent/agents/evidence.py emits but aren't in the 21-event fixture,
+    // are real shapes agent/agents/evidence.py emits but aren't in the 23-event fixture,
     // so this constructs the shape directly rather than skip the capability untested.
     const searching: AgentEvent = {
       seq: 99,
@@ -119,9 +127,9 @@ describe("isInFlight", () => {
   });
 
   it("names the last event when it is a step_started with no result yet — the silent gap", () => {
-    const prefix = MOCK_EVENTS.slice(0, 5); // ends on vision's step_started (seq 4)
+    const prefix = MOCK_EVENTS.slice(0, 7); // ends on vision's step_started (seq 6)
     const inFlight = isInFlight(prefix);
-    expect(inFlight?.seq).toBe(4);
+    expect(inFlight?.seq).toBe(6);
     expect(inFlight?.agent).toBe("vision");
   });
 
@@ -132,7 +140,7 @@ describe("isInFlight", () => {
   });
 
   it("is null once that step's result has landed", () => {
-    const prefix = MOCK_EVENTS.slice(0, 6); // vision's tool_result (seq 5) has landed
+    const prefix = MOCK_EVENTS.slice(0, 8); // vision's tool_result (seq 7) has landed
     expect(isInFlight(prefix)).toBeNull();
   });
 });
@@ -159,7 +167,7 @@ describe("workingLabel", () => {
   });
 
   it("says Running, never AI is generating, for a deterministic step in flight", () => {
-    // Not in the 21-event golden path fixture (it has no maintenance-lookup gap long
+    // Not in the 23-event golden path fixture (it has no maintenance-lookup gap long
     // enough to observe mid-flight), but a shape investigator.py genuinely emits before
     // get_lot_genealogy/get_maintenance_events return — a plant-data lookup, not a model
     // call, and must never be announced as "AI is generating".

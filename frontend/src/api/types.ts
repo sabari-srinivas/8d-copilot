@@ -152,6 +152,24 @@ export interface TravelerRow {
   low_confidence_fields: string[];
 }
 
+/** Extracted from an optional shift-lead voice-note upload (CR #12) by
+ * `agent/tools/voice_tool.py`, Gemini's native audio understanding -- no separate
+ * speech-to-text step. `language`/`language_name` report whatever language was heard
+ * (never forced to English); `translation` is always an English rendering, equal to
+ * `transcript` when the note is already in English. `low_confidence_fields` names any
+ * of `lot_or_line`/`observations`/`maintenance_mentions` the model is not sure it heard
+ * correctly -- same convention as `TravelerRow.low_confidence_fields`. */
+export interface VoiceNote {
+  language: string;
+  language_name: string;
+  transcript: string;
+  translation: string;
+  lot_or_line: string;
+  observations: string[];
+  maintenance_mentions: string[];
+  low_confidence_fields: string[];
+}
+
 export interface Investigation {
   id: string;
   status: Status;
@@ -164,6 +182,8 @@ export interface Investigation {
   results: HypothesisResult[];
   citations: Citation[];
   traveler_rows: TravelerRow[];
+  /** Null when no voice note was uploaded with the investigation (CR #12). */
+  voice_note: VoiceNote | null;
   hold_lots: string[];
   eight_d: EightD | null;
   proposed_actions: ProposedAction[];

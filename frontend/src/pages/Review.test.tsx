@@ -42,6 +42,7 @@ function draftInvestigation(): Investigation {
     results: [],
     citations: [],
     traveler_rows: [],
+    voice_note: null,
     hold_lots: [],
     eight_d,
     proposed_actions: [],

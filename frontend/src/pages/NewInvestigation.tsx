@@ -67,6 +67,7 @@ export function NewInvestigation() {
   const [lotId, setLotId] = useState("");
   const [imageName, setImageName] = useState("");
   const [travelerName, setTravelerName] = useState("");
+  const [voiceNoteName, setVoiceNoteName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -200,6 +201,26 @@ export function NewInvestigation() {
             style={{ borderColor: "var(--line)" }}
           />
           {travelerName && <p className="text-xs opacity-60 mt-1">Selected: {travelerName}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="voice_note" className="block text-sm font-medium mb-1">
+            Shift lead voice note <span className="font-normal opacity-60">— optional</span>
+          </label>
+          <input
+            id="voice_note"
+            name="voice_note"
+            type="file"
+            accept="audio/*"
+            onChange={(e) => setVoiceNoteName(e.target.files?.[0]?.name ?? "")}
+            className="tap-target w-full rounded-lg border p-2 text-sm file:mr-3 file:tap-target file:rounded-md file:border-0 file:px-3 file:text-sm file:font-medium file:text-white file:bg-[var(--green)]"
+            style={{ borderColor: "var(--line)" }}
+          />
+          <p className="text-xs opacity-60 mt-1" aria-live="polite">
+            {voiceNoteName
+              ? `Selected: ${voiceNoteName}`
+              : "A recorded remark from the floor — Gemini reads it directly, in English, Tamil or Hindi."}
+          </p>
         </div>
 
         {error && (
