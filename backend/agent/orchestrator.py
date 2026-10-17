@@ -47,10 +47,13 @@ async def start(*, complaint_id: str, lot_id: str, image_bytes: bytes, mime_type
     # The uploaded photo itself (as opposed to the vision agent's reading of it) has to
     # be saved through the same files backend as the stats charts (agent/tools/storage.py)
     # so the UI has a URL to show it from — PRD 143: "Shown on the photo as soon as it
-    # returns." `_uploads` above is in-memory and popped once the run finishes (CLAUDE.md
+    # returns." `_uploads` above is in-memory, kept only for the run's lifetime (CLAUDE.md
     # rule 6 is about not putting image bytes in logs/events, not about never persisting
     # the photo a human reviewer needs to see), so without this the UI would never have
-    # anything to point an <img> at.
+    # anything to point an <img> at. This entry is popped by run_investigation's own
+    # finally block on the live path, and by main.py's replay branch on the replay path
+    # — replay() never calls run_investigation, so its finally never runs; see the pop
+    # in main.py for why that second site exists.
     ext = mimetypes.guess_extension(mime_type or "") or ".jpg"
     # Threaded (task 14): under FILES_BACKEND=gcs this is a network upload, made from
     # inside this async function — the same event-loop freeze risk as the model calls.
@@ -207,7 +210,10 @@ async def run_investigation(inv_id: str) -> None:
                           detail=message, data={"message": message})
         raise
     finally:
-        # The uploaded bytes never outlive the run, on either path.
+        # The uploaded bytes never outlive a LIVE run. Replay never reaches this
+        # function at all (main.py's _run branches to agent.replay.replay instead), so
+        # this pop does not cover replay mode — see the matching pop in main.py's
+        # replay branch, and the comment on `_uploads[inv_id] = ...` above in start().
         _uploads.pop(inv_id, None)
         await bus.publish(inv_id, "system", "done", "Investigation complete")
         bus.close(inv_id)

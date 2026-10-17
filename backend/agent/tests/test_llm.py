@@ -24,10 +24,14 @@ def test_missing_prompt_raises_with_the_name():
 def test_no_model_id_is_hard_coded_anywhere_in_the_package():
     """CLAUDE.md rule 3: model names come only from env, in code, tests, comments or docs.
 
-    Scans every .py and .md file under backend/ (not just agent/, and NOT skipping
-    tests), excluding only .venv. The regex pattern below does not match its own literal
-    source line (the bracket class breaks the match right after "gemini-"/"text-embedding-"),
-    so this test legitimately scans itself without needing a self-exclusion.
+    Scans every .py, .md and .json file under backend/ (not just agent/, and NOT
+    skipping tests), excluding only .venv. .json was added after a real miss: the
+    committed harness output backend/data/out/run_cases.json carried a literal
+    "model": "<gemini id>" field that this test's narrower .py/.md scan never saw,
+    directly contradicting the README's claim that model names appear nowhere under
+    backend/. The regex pattern below does not match its own literal source line (the
+    bracket class breaks the match right after "gemini-"/"text-embedding-"), so this
+    test legitimately scans itself without needing a self-exclusion.
     """
     import os
     import re
@@ -38,7 +42,7 @@ def test_no_model_id_is_hard_coded_anywhere_in_the_package():
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d != ".venv"]
         for fname in filenames:
-            if not (fname.endswith(".py") or fname.endswith(".md")):
+            if not (fname.endswith(".py") or fname.endswith(".md") or fname.endswith(".json")):
                 continue
             path = Path(dirpath) / fname
             for n, line in enumerate(path.read_text(errors="ignore").splitlines(), 1):

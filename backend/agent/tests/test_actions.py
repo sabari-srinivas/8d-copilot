@@ -123,6 +123,11 @@ async def test_rejecting_customer_reply_creates_no_reply(store):
     out = await actions.apply_approval(_inv(), approver="Priya R.", edits={},
                                        rejected_action_ids=["A4"], note="")
     assert out["replies"] is None
+    # A null `replies` means either "excluded at review" or "attempted and failed" --
+    # rejected_action_ids is how a caller tells the two apart. See also
+    # test_a_failed_customer_reply_still_returns_the_other_results below, which hits
+    # the OTHER path to a null `replies` and must produce an empty list here instead.
+    assert out["rejected_action_ids"] == ["A4"]
 
 
 @pytest.mark.asyncio
@@ -144,6 +149,10 @@ async def test_a_failed_customer_reply_still_returns_the_other_results(store, mo
     out = await actions.apply_approval(_inv(), approver="Priya R.", edits={},
                                        rejected_action_ids=[], note="")
     assert out["replies"] is None
+    # Nothing was excluded here -- the reply was attempted and the model call raised.
+    # This is the case test_rejecting_customer_reply_creates_no_reply above must stay
+    # distinguishable from: same null `replies`, empty rejected_action_ids instead.
+    assert out["rejected_action_ids"] == []
     assert out["capa_id"] is not None
     assert out["hold_id"] is not None
     assert out["work_order_id"] is not None

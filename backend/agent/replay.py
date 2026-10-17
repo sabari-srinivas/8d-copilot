@@ -95,6 +95,19 @@ async def replay(case_name: str, inv_id: str) -> None:
     # events are still streaming, exactly as a live run does.
     inv.id = inv_id
     state = get_state()
+    # orchestrator.start() already saved an Investigation for inv_id with the photo
+    # the viewer just uploaded through the real files backend (photos/<inv_id>.<ext>,
+    # reachable under FILES_BACKEND=local or =gcs). The recording's own photo_url
+    # points at whatever file the recorded run uploaded, which under Cloud Run is
+    # excluded from the image (replay recordings ship only their .json, not the photo
+    # bytes that produced them) -- so blindly overwriting photo_url with the
+    # recording's value turns the hero image into a grey box, in exactly the mode
+    # that exists so quota pressure doesn't cost the demo its visuals. Preserve the
+    # live upload's photo_url when there is one; every other field still comes from
+    # the recording.
+    existing = await asyncio.to_thread(state.get_investigation, inv_id)
+    if existing and existing.photo_url:
+        inv.photo_url = existing.photo_url
     await asyncio.to_thread(state.save_investigation, inv)
 
     try:

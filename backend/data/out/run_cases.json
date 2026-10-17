@@ -1,6 +1,5 @@
 {
   "generated_at": "2026-10-17T05:04:05Z",
-  "model": "gemini-2.5-flash",
   "inter_case_delay_s": 20.0,
   "case_timeout_s": 270.0,
   "passed": 6,

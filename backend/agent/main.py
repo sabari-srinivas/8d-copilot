@@ -121,8 +121,18 @@ async def _run(inv_id: str):
         # and in the UI header — a viewer must never be unsure whether a run is live.
         case = get_settings().replay_case
         if case:
+            from agent.orchestrator import _uploads
             from agent.replay import replay
-            await replay(case, inv_id)
+            try:
+                await replay(case, inv_id)
+            finally:
+                # replay() never calls run_investigation, so run_investigation's own
+                # finally (which pops _uploads on the live path) never runs here.
+                # start() always populates _uploads[inv_id] regardless of which path
+                # _run takes, so without this pop, a full in-memory copy of every
+                # replayed upload's image bytes would sit in this dict for the rest of
+                # the process's life.
+                _uploads.pop(inv_id, None)
             return
         await run_investigation(inv_id)
     except Exception as exc:

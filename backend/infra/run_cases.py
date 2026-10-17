@@ -268,7 +268,11 @@ def main() -> int:
 
     summary = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "model": settings.require_model(),
+        # No "model" field here on purpose (CLAUDE.md rule 3 / test_llm.py's
+        # no-hard-coded-model-id guard, which scans .json too): the model actually used
+        # is already printed to stdout above (`print(f"model: ...")`) for whoever runs
+        # the harness, and that printed report is exactly where an ephemeral run-time
+        # fact like this belongs -- not baked into a file committed under backend/.
         "inter_case_delay_s": INTER_CASE_DELAY_S,
         "case_timeout_s": CASE_TIMEOUT_S,
         "passed": passed, "skipped": skipped, "failed": failed,

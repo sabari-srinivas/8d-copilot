@@ -145,8 +145,15 @@ async def apply_approval(inv: Investigation, *, approver: str, edits: dict[str, 
         cause = _confirmed_cause(inv)
         line = next((a.payload.get("line", "") for a in accepted.values()
                      if a.kind == "work_order"), "")
+        # rejected_action_ids travels back to the caller so a client can tell "this
+        # was excluded at review" apart from "this was attempted and failed" -- both
+        # show up as a null result field (replies, in particular: see the try/except
+        # around the customer-reply call below), and those are different facts a
+        # viewer needs told apart, especially on a page that is the last thing a judge
+        # sees after a 429.
         out: dict = {"capa_id": None, "hold_id": None, "work_order_id": None,
-                     "replies": None, "memory_id": None}
+                     "replies": None, "memory_id": None,
+                     "rejected_action_ids": list(rejected_action_ids)}
 
         for action in accepted.values():
             if action.kind == "capa":

@@ -40,7 +40,8 @@ def test_a_missing_recording_names_the_directory_and_how_to_make_one():
 def recorded(tmp_path, monkeypatch):
     """A recording on disk, with every in-memory trace of it removed afterwards."""
     monkeypatch.setattr(replay_mod, "DIR", tmp_path)
-    inv = Investigation(id="inv_source", lot_id="L2611", status="draft_ready")
+    inv = Investigation(id="inv_source", lot_id="L2611", status="draft_ready",
+                       photo_url="/api/files/photos/inv_source.jpg")
     events = [_event(0, "2026-10-17T10:00:00Z", "step_started", "Investigation started"),
               _event(1, "2026-10-17T10:00:00Z", "tool_result", "Solder bridge · Major"),
               _event(2, "2026-10-17T10:00:01Z", "draft_ready", "8D draft ready"),
@@ -109,6 +110,76 @@ async def test_a_late_subscriber_still_sees_the_whole_replayed_run(recorded, mon
 
     seen = [e async for e in bus.subscribe("inv_new")]
     assert [e.type for e in seen] == ["step_started", "tool_result", "draft_ready", "done"]
+
+
+@pytest.mark.asyncio
+async def test_replay_uses_the_recordings_photo_url_when_nothing_was_uploaded_live(
+        recorded, monkeypatch):
+    """Cold-process case: no prior start() call under this id (e.g. a server restart
+    mid-replay-setup), so there is nothing live to preserve -- the recording's own
+    photo_url is the only one available and must be used."""
+    store = MemoryStateStore()
+    bus = EventBus()
+    monkeypatch.setattr(replay_mod, "get_state", lambda: store)
+    monkeypatch.setattr("agent.events.get_state", lambda: store)
+    monkeypatch.setattr(replay_mod, "bus", bus)
+    monkeypatch.setattr(replay_mod, "MAX_GAP_SECONDS", 0.0)
+
+    await replay_mod.replay("golden", "inv_new")
+
+    assert store.get_investigation("inv_new").photo_url == "/api/files/photos/inv_source.jpg"
+
+
+@pytest.mark.asyncio
+async def test_replay_preserves_the_live_uploads_photo_url_over_the_recordings(
+        recorded, monkeypatch):
+    """The real path: orchestrator.start() already saved an Investigation for inv_id
+    carrying the photo_url of the image the viewer just uploaded (saved through the
+    live files backend). Under Cloud Run the recording's own photo_url points at a
+    file excluded from the image, so replay must keep the live upload's photo_url
+    rather than overwrite it with the recording's -- otherwise the hero defect photo
+    renders as a grey box during the one mode that exists to survive a quota outage."""
+    store = MemoryStateStore()
+    bus = EventBus()
+    monkeypatch.setattr(replay_mod, "get_state", lambda: store)
+    monkeypatch.setattr("agent.events.get_state", lambda: store)
+    monkeypatch.setattr(replay_mod, "bus", bus)
+    monkeypatch.setattr(replay_mod, "MAX_GAP_SECONDS", 0.0)
+
+    live_upload = Investigation(id="inv_new", lot_id="L2611", status="running",
+                                photo_url="/api/files/photos/inv_new.jpg")
+    store.save_investigation(live_upload)
+
+    await replay_mod.replay("golden", "inv_new")
+
+    stored = store.get_investigation("inv_new")
+    assert stored.photo_url == "/api/files/photos/inv_new.jpg"
+    assert stored.status == "draft_ready"      # the rest of the state is still the recording's
+
+
+@pytest.mark.asyncio
+async def test_main_run_pops_uploaded_bytes_in_replay_mode(monkeypatch):
+    """`_uploads` (orchestrator.py) holds the raw uploaded image bytes for a run's
+    lifetime. On the live path, run_investigation's own finally pops it -- but
+    replay() never calls run_investigation, so main._run's replay branch has to pop
+    it itself, or a full copy of every replayed upload's bytes sits in memory for
+    the rest of the process's life. This drives the real committed golden replay
+    recording (data/out/replay/golden.json) through main._run end to end and checks
+    the dict afterwards."""
+    from agent import main
+    from agent.orchestrator import _uploads
+
+    inv_id = "inv_replay_leak_check"
+    _uploads[inv_id] = {"image": b"x" * 10, "mime": "image/jpeg",
+                        "complaint_text": "", "traveler": None}
+
+    fake_settings = type("FakeSettings", (), {"replay_case": "golden"})()
+    monkeypatch.setattr(main, "get_settings", lambda: fake_settings)
+    monkeypatch.setattr(replay_mod, "MAX_GAP_SECONDS", 0.0)   # keep the test fast
+
+    await main._run(inv_id)
+
+    assert inv_id not in _uploads
 
 
 def test_recording_an_unknown_investigation_raises(monkeypatch, tmp_path):
