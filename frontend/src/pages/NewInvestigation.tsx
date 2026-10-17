@@ -22,11 +22,14 @@ function AdjacentComplaintNav({
   const next = open[index + 1];
 
   return (
-    <nav aria-label="Other complaints" className="flex items-center gap-3 text-sm mb-4">
+    <nav
+      aria-label="Other complaints"
+      className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm mb-4"
+    >
       {prev ? (
         <Link
           to={`/new?complaint=${encodeURIComponent(prev.complaint_id)}`}
-          className="tap-target inline-flex items-center gap-1 font-medium underline"
+          className="tap-target inline-flex items-center gap-1 font-medium underline shrink-0 whitespace-nowrap"
           style={{ color: "var(--green)" }}
         >
           ← {prev.customer}
@@ -34,13 +37,13 @@ function AdjacentComplaintNav({
       ) : (
         <span />
       )}
-      <span className="opacity-40 mono text-xs ml-auto">
+      <span className="opacity-40 mono text-xs shrink-0 order-first basis-full text-center sm:order-none sm:basis-auto sm:text-left">
         {index + 1} of {open.length}
       </span>
       {next && (
         <Link
           to={`/new?complaint=${encodeURIComponent(next.complaint_id)}`}
-          className="tap-target inline-flex items-center gap-1 font-medium underline"
+          className="tap-target inline-flex items-center gap-1 font-medium underline shrink-0 whitespace-nowrap"
           style={{ color: "var(--green)" }}
         >
           {next.customer} →
