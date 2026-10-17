@@ -18,6 +18,7 @@ Decoy 3 (H4)   : operator OP-17 joined Line 2 on 2026-10-06, close to WO-388,
 Run: python -m data.generate_plant   (writes data/out/)
 """
 import argparse
+import json
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -128,16 +129,118 @@ maint = pd.DataFrame([
 ], columns=["wo_id", "line", "date", "asset", "description", "status", "post_check"])
 
 # ---------- complaints (inbox) ----------
+# PRD's opening pain made literal (CR #14): "the root cause becomes 'operator error',
+# the 8D gets sent back, and the same defect returns next quarter." Two of the five open
+# complaints below are REJECTIONS of an 8D Priya's team already submitted, not new
+# defect reports -- `is_rejection`/`objection`/`original_eight_d` (agent/models.py)
+# are the deterministic flag and payload the UI and agent/orchestrator.py branch on.
+# `original_eight_d` is stored as a JSON string (pandas/CSV has no native nested type);
+# agent/tools/intake_tools.py parses it back into a dict on read.
+
+
+def _section(text: str, citations: list[dict] | None = None) -> dict:
+    return {"text": text, "citations": citations or []}
+
+
+# Rejection 1 (C-2026-033): a repeat of the SAME planted cause as the golden path
+# (WO-388's unverified reflow profile drift, lot L2612 is in DRIFT_LOT_IDS) -- but the
+# 8D Priya's team actually sent blamed "operator error" instead of re-testing it, which
+# is exactly the decoy H4 tests and finds inconclusive (data/check_plant.py). The
+# customer's objection is the PRD's own sentence. The revise path must throw out the
+# operator-error sentence and replace it with the real, evidence-backed cause -- which
+# a live rerun of the investigator on L2612 will find supported, the same as C-2026-031.
+REJECTED_8D_OPERATOR_ERROR = {
+    "D1": _section("Team: SMT process engineer (lead), quality engineer, production "
+                   "shift supervisor."),
+    "D2": _section("Problem description: Hoshino Denso (fictional) reported solder "
+                   "bridging on ECU-PCB-7, lot L2612, found at incoming inspection."),
+    "D3": _section("Containment: lot L2612 and the two adjacent lots were pulled and "
+                   "100% re-inspected under magnification; bridged boards were reworked."),
+    "D4": _section("Root cause: operator error. Operator OP-17, who began running Line "
+                   "2 shortly before the affected lots, did not consistently follow the "
+                   "stencil wipe procedure, resulting in excess solder deposit and "
+                   "bridging at fine-pitch pads."),
+    "D5": _section("Permanent corrective action: OP-17 was retrained on the stencil "
+                   "wipe procedure and re-certified."),
+    "D6": _section("Verification of effectiveness: no further bridging was observed on "
+                   "OP-17's lots in the week following retraining."),
+    "D7": _section("Prevent recurrence: training records updated to reflect "
+                   "re-certification."),
+    "D8": _section("Closure: corrective action verified and closed; 8D sent to Hoshino "
+                   "Denso (fictional)."),
+}
+
+# Rejection 2 (C-2026-034): the root cause itself is right (same WO-388 window, lot
+# L2610 is also in DRIFT_LOT_IDS) but D4 never says WHY the drift escaped detection --
+# exactly the gap agent/prompts/writer.md requires every fresh draft to close, and the
+# objection names it directly. PFMEA row 14's detection control (AOI 100% + profile
+# check per shift) and WO-388's own post_check ("profile_verification_pending" in
+# `maint` above) are both real tool results the revise path can cite to fill the gap
+# without inventing anything.
+REJECTED_8D_MISSING_DETECTION = {
+    "D1": _section("Team: SMT process engineer (lead), quality engineer, reflow "
+                   "equipment technician."),
+    "D2": _section("Problem description: Meridian Auto Electronics (fictional) "
+                   "reported solder bridging on ECU-PCB-7, lot L2610, found at "
+                   "incoming inspection."),
+    "D3": _section("Containment: lot L2610 and lots produced in the same window on "
+                   "Line 2 were pulled and 100% re-inspected; bridged boards were "
+                   "reworked."),
+    "D4": _section(
+        "Root cause: following work order WO-388 (Line 2 reflow oven zone 7 heater "
+        "replacement and profile re-tune), reflow peak temperature drifted above the "
+        "process limit across the lots produced afterward, causing excess solder flow "
+        "and bridging between adjacent fine-pitch pads [PFMEA row 14].",
+        [{"label": "PFMEA row 14", "source": "pfmea.md", "ref": "Row 14",
+          "quote": "Cause: Reflow peak temperature above profile limit."}]),
+    "D5": _section("Permanent corrective action: re-qualify the Line 2 reflow profile "
+                   "and hold lots produced since the last verified profile."),
+    "D6": _section("Verification of effectiveness: profile re-qualification to be "
+                   "confirmed against the 235-250 °C specification before the hold is "
+                   "released."),
+    "D7": _section("Prevent recurrence: PFMEA row 14 and control plan item 6 to be "
+                   "reviewed."),
+    "D8": _section("Closure: corrective action pending verification; 8D sent to "
+                   "Meridian Auto Electronics (fictional)."),
+}
+
 complaints = pd.DataFrame([
     ("C-2026-031", "2026-10-15", "Hoshino Denso (fictional)", "ECU-PCB-7", "L2611", "solder_bridge",
      "Solder bridging found on ECU-PCB-7, lot 2611, 14 of 500 units at our incoming/ICT. "
-     "Please contain immediately and send 8D within 10 working days.", "2026-10-29", "open"),
+     "Please contain immediately and send 8D within 10 working days.", "2026-10-29", "open",
+     False, "", None),
     ("C-2026-032", "2026-10-14", "Kaveri Motors (fictional)", "ECU-PCB-9", "L9142", "tombstoning",
-     "3 boards with tombstoned 0402 capacitors at C112, lot 9142. Request 8D.", "2026-10-28", "open"),
+     "3 boards with tombstoned 0402 capacitors at C112, lot 9142. Request 8D.", "2026-10-28", "open",
+     False, "", None),
+    # Rejection, urgent: due date is inside the "3 working days or fewer" countdown band.
+    ("C-2026-033", "2026-10-16", "Hoshino Denso (fictional)", "ECU-PCB-7", "L2612", "solder_bridge",
+     "We are returning the 8D for lot L2612 (7 of 515 units, solder bridging at "
+     "incoming inspection) unapproved: root cause stated as operator error; not "
+     "acceptable. Please re-investigate with objective evidence and resubmit within "
+     "3 working days.", "2026-10-20", "open",
+     True, "root cause stated as operator error; not acceptable",
+     REJECTED_8D_OPERATOR_ERROR),
+    # Rejection, not urgent.
+    ("C-2026-034", "2026-10-15", "Meridian Auto Electronics (fictional)", "ECU-PCB-7", "L2610",
+     "solder_bridge",
+     "We are returning the 8D for lot L2610 (13 of 511 units, solder bridging at "
+     "incoming inspection) unapproved: D4 does not explain why the condition escaped "
+     "detection. Please revise and resubmit.", "2026-10-30", "open",
+     True, "D4 does not explain why the condition escaped detection",
+     REJECTED_8D_MISSING_DETECTION),
+    # New defect report, not a rejection, on a lot outside the drifted window.
+    ("C-2026-035", "2026-10-13", "Vindhya Auto Systems (fictional)", "ECU-PCB-7", "L2590",
+     "missing_component",
+     "One missing 0402 resistor at position R18 found on ECU-PCB-7, lot 2590, during "
+     "customer incoming inspection. Please investigate and provide 8D.", "2026-11-06", "open",
+     False, "", None),
     ("C-2026-024", "2026-07-02", "Hoshino Denso (fictional)", "ECU-PCB-7", "L2389", "tombstoning",
-     "Tombstoning on 0402 resistors, lot 2389.", "2026-07-16", "closed"),
+     "Tombstoning on 0402 resistors, lot 2389.", "2026-07-16", "closed",
+     False, "", None),
 ], columns=["complaint_id", "received", "customer", "product", "lot_id", "defect",
-            "text", "eight_d_due", "status"])
+            "text", "eight_d_due", "status", "is_rejection", "objection", "original_eight_d"])
+complaints["original_eight_d"] = complaints["original_eight_d"].apply(
+    lambda d: json.dumps(d) if d is not None else "")
 
 lots.to_csv(OUT / "lots.csv", index=False)
 process.to_csv(OUT / "process.csv", index=False)

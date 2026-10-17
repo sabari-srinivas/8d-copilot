@@ -1,9 +1,11 @@
 """Complaint text and the messy shift-lead spreadsheet, turned into typed rows."""
 import io
+import json
 import logging
 import re
 from datetime import date, datetime, timedelta
 
+import pandas as pd
 from openpyxl import load_workbook
 
 from agent.models import Complaint, TravelerRow
@@ -139,17 +141,48 @@ def parse_complaint(text: str, complaint_id: str = "") -> Complaint:
     return parsed
 
 
+def _cell(row: dict, field: str, default: str = "") -> str:
+    """A CSV round-trip turns an empty string into NaN (float), not back into "" --
+    `pd.read_csv` has no notion of "empty but present" versus "absent" for a text
+    column. Every text field read off a complaints.csv row must go through this,
+    not a bare `row.get(...)`."""
+    value = row.get(field, default)
+    return default if value is None or (isinstance(value, float) and pd.isna(value)) else str(value)
+
+
+def _row_to_complaint(row: dict, today: date) -> Complaint:
+    """One `data/out/complaints.csv` row -> a typed `Complaint`. Shared by the inbox
+    listing and the single-record lookup so the two can never drift apart on how a
+    rejection's fields are parsed."""
+    due = _cell(row, "eight_d_due")
+    raw_eight_d = _cell(row, "original_eight_d")
+    is_rejection = str(row.get("is_rejection", False)).strip().lower() == "true"
+    return Complaint(
+        complaint_id=row["complaint_id"], customer=row["customer"], product=row["product"],
+        lot_id=row["lot_id"], defect=row["defect"], received=_cell(row, "received"),
+        eight_d_due=due, status=row.get("status", "open"), text=_cell(row, "text"),
+        due_in_working_days=working_days_between(today, date.fromisoformat(due))
+        if due else None,
+        is_rejection=is_rejection, objection=_cell(row, "objection"),
+        original_eight_d=json.loads(raw_eight_d) if raw_eight_d else None)
+
+
 def list_complaints(today: date | None = None) -> list[Complaint]:
     """The inbox. Parsed fields come from the dataset, so no model call per page load
     (PRD 7 screen 0: 'cached after first run')."""
     today = today or date.today()
-    out: list[Complaint] = []
-    for row in get_store().complaints().to_dict("records"):
-        due = row.get("eight_d_due") or ""
-        out.append(Complaint(
-            complaint_id=row["complaint_id"], customer=row["customer"], product=row["product"],
-            lot_id=row["lot_id"], defect=row["defect"], received=str(row.get("received", "")),
-            eight_d_due=str(due), status=row.get("status", "open"), text=row.get("text", ""),
-            due_in_working_days=working_days_between(today, date.fromisoformat(str(due)))
-            if due else None))
-    return out
+    return [_row_to_complaint(row, today) for row in get_store().complaints().to_dict("records")]
+
+
+def get_complaint_record(complaint_id: str, today: date | None = None) -> Complaint | None:
+    """Deterministic, CSV-backed single-complaint lookup -- used by
+    agent/orchestrator.py to learn whether the complaint behind a live investigation is
+    a rejection, and if so its objection and the 8D it is rejecting. This deliberately
+    does NOT go through `parse_complaint` (the LLM path, used for `customer`/`product`/
+    `lot_id` parsed from free-form text): whether a complaint is a rejection, and the
+    full D1-D8 text it is rejecting, are facts about the complaint record, not
+    something a model should reconstruct from a snippet of text on every run."""
+    today = today or date.today()
+    rows = get_store().complaints().to_dict("records")
+    row = next((r for r in rows if r["complaint_id"] == complaint_id), None)
+    return _row_to_complaint(row, today) if row is not None else None

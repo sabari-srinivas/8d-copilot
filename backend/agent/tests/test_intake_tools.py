@@ -69,3 +69,54 @@ def test_complaints_list_carries_the_countdown():
     golden = next(c for c in complaints if c.complaint_id == "C-2026-031")
     assert golden.customer == "Hoshino Denso (fictional)"
     assert golden.due_in_working_days is not None
+
+
+def test_five_open_complaints_two_of_them_rejections():
+    """CR #6/#14: five open complaints in the inbox, two of them customer rejections
+    of a previously submitted 8D rather than new defect reports."""
+    complaints = it.list_complaints()
+    open_complaints = [c for c in complaints if c.status == "open"]
+    assert len(open_complaints) == 5
+    rejections = [c for c in open_complaints if c.is_rejection]
+    assert len(rejections) == 2
+    for c in rejections:
+        assert c.objection
+        assert c.original_eight_d is not None
+    non_rejections = [c for c in open_complaints if not c.is_rejection]
+    assert all(c.objection == "" and c.original_eight_d is None for c in non_rejections)
+
+
+def test_golden_path_complaint_is_unchanged():
+    golden = next(c for c in it.list_complaints() if c.complaint_id == "C-2026-031")
+    assert golden.lot_id == GOLDEN_LOT
+    assert golden.is_rejection is False
+    assert golden.status == "open"
+
+
+def test_at_least_one_open_complaint_is_urgent():
+    """CR #6: due dates must make the countdown meaningful -- at least one open
+    complaint due in three working days or fewer."""
+    urgent = [c for c in it.list_complaints() if c.status == "open"
+             and c.due_in_working_days is not None and c.due_in_working_days <= 3]
+    assert urgent, "expected at least one urgent open complaint"
+
+
+def test_get_complaint_record_returns_the_rejection_payload():
+    rec = it.get_complaint_record("C-2026-033")
+    assert rec is not None
+    assert rec.is_rejection is True
+    assert "operator error" in rec.objection
+    assert rec.original_eight_d is not None
+    assert "operator error" in rec.original_eight_d["D4"]["text"].lower()
+
+
+def test_get_complaint_record_on_a_non_rejection_has_no_objection_or_eight_d():
+    rec = it.get_complaint_record("C-2026-031")
+    assert rec is not None
+    assert rec.is_rejection is False
+    assert rec.objection == ""
+    assert rec.original_eight_d is None
+
+
+def test_get_complaint_record_unknown_id_returns_none():
+    assert it.get_complaint_record("C-nope") is None

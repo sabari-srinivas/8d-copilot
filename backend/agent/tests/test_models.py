@@ -56,7 +56,7 @@ def test_event_round_trips_a_representative_event():
 
 def test_event_agent_values_are_the_contract_values():
     assert set(Event.model_fields["agent"].annotation.__args__) == {
-        "intake", "vision", "investigator", "evidence", "writer", "system"}
+        "intake", "vision", "investigator", "evidence", "writer", "reviser", "system"}
 
 
 def test_event_type_values_are_the_contract_values():
@@ -99,6 +99,23 @@ def test_complaint_leaves_a_real_date_alone():
     c = _complaint("2026-10-15", "2026-10-29")
     assert c.received == "2026-10-15"
     assert c.eight_d_due == "2026-10-29"
+
+
+def test_complaint_rejection_fields_default_to_a_new_defect_report():
+    c = _complaint("2026-10-15", "2026-10-29")
+    assert c.is_rejection is False
+    assert c.objection == ""
+    assert c.original_eight_d is None
+
+
+def test_complaint_can_carry_a_rejected_8d():
+    section = {"text": "Root cause: operator error.", "citations": []}
+    c = Complaint(complaint_id="C-x", customer="x", product="x", lot_id="L1", defect="x",
+                 is_rejection=True, objection="root cause stated as operator error; not acceptable",
+                 original_eight_d={f"D{i}": section for i in range(1, 9)})
+    assert c.is_rejection is True
+    assert "operator error" in c.objection
+    assert EightD.model_validate(c.original_eight_d).D4.text == "Root cause: operator error."
 
 
 @pytest.mark.parametrize("nullish", ["null", None, "none", "n/a", "-", "unknown"])

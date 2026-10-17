@@ -15,7 +15,8 @@ Direction = Literal["higher", "lower", "any"]
 SixM = Literal["Machine", "Method", "Material", "Man", "Measurement", "Environment"]
 Status = Literal["running", "draft_ready", "approved", "insufficient_evidence", "failed"]
 ActionKind = Literal["capa", "hold", "work_order", "customer_reply"]
-AgentName = Literal["intake", "vision", "investigator", "evidence", "writer", "system"]
+AgentName = Literal["intake", "vision", "investigator", "evidence", "writer", "reviser",
+                    "system"]
 EventType = Literal["step_started", "tool_call", "tool_result", "memory_hit", "hypothesis",
                     "hypothesis_result", "citation", "draft_ready", "done", "error",
                     "capa_effectiveness"]
@@ -38,6 +39,21 @@ class Complaint(BaseModel):
     status: Literal["open", "closed"] = "open"
     text: str = ""
     due_in_working_days: int | None = None
+    # PRD opening line, made literal: "the 8D gets sent back". A rejection is a
+    # customer's response to an 8D Priya's team ALREADY submitted, not a fresh defect
+    # report -- the UI and agent/orchestrator.py both branch on this flag rather than
+    # inferring it from free text, since whether a complaint is a rejection is a fact
+    # about the complaint record, not something an LLM should have to guess twice.
+    is_rejection: bool = False
+    # The customer's stated reason for sending the 8D back, e.g. "root cause stated
+    # as operator error; not acceptable". Empty for an ordinary new-defect complaint.
+    objection: str = ""
+    # The full D1-D8 text of the 8D that was submitted and rejected, in the same shape
+    # as EightD (dict, not the EightD type itself, so parse_complaint's LLM schema
+    # stays a plain JSON object here rather than forcing the model to reproduce eight
+    # nested sections on every complaint parse -- agent/agents/reviser.py validates
+    # it into an EightD when it actually needs one). None for an ordinary complaint.
+    original_eight_d: dict | None = None
 
     @field_validator("received", "eight_d_due", mode="before")
     @classmethod

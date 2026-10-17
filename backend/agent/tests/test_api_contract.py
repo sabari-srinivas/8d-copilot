@@ -40,6 +40,20 @@ def test_complaints_carry_the_inbox_fields(client):
     assert golden["product"] == "ECU-PCB-7"
     assert golden["lot_id"] == "L2611"
     assert "due_in_working_days" in golden
+    assert golden["is_rejection"] is False
+
+
+def test_five_open_complaints_two_are_rejections_with_an_original_8d(client):
+    """CR #6/#14: the contract's GET /complaints response for a rejection row."""
+    rows = client.get("/api/complaints").json()
+    open_rows = [c for c in rows if c["status"] == "open"]
+    assert len(open_rows) == 5
+    rejections = [c for c in open_rows if c["is_rejection"]]
+    assert len(rejections) == 2
+    for c in rejections:
+        assert c["objection"]
+        assert c["original_eight_d"] is not None
+        assert set(c["original_eight_d"]) == {f"D{i}" for i in range(1, 9)}
 
 
 def test_creating_an_investigation_returns_id_and_running(client):
