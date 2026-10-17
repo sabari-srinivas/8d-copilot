@@ -174,3 +174,33 @@ def test_demo_code_enforced_when_set(monkeypatch):
     with client.stream("GET", f"/api/investigations/{inv_id}/events?code=let-me-in") as stream:
         assert stream.status_code == 200
         assert stream.headers["content-type"].startswith("text/event-stream")
+
+
+def test_demo_code_does_not_block_cors_preflight(monkeypatch):
+    """A cross-origin fetch() with a custom header (X-Demo-Code) triggers a browser
+    CORS preflight first — a bare OPTIONS request that never carries the header
+    itself, since the whole point of preflight is asking permission before sending
+    it. require_demo_code must let OPTIONS through unconditionally so CORSMiddleware
+    (registered before it, but placed OUTSIDE it in the actual call chain by
+    FastAPI's insert(0) middleware ordering) can answer the preflight with proper
+    CORS headers. Before this was fixed, every cross-origin gated call's preflight
+    got a 401 with no CORS headers at all, which a browser would treat as a blocked
+    request — found live when the frontend was pointed directly at the Cloud Run
+    origin instead of going through the same-origin Firebase rewrite."""
+    from agent.config import Settings
+    from agent import main
+
+    monkeypatch.setattr(main, "get_settings", lambda: Settings(demo_access_code="let-me-in"))
+    client = TestClient(main.app)
+
+    resp = client.options(
+        "/api/complaints",
+        headers={
+            "Origin": "https://d-copilot-2026.web.app",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "x-demo-code",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.headers.get("access-control-allow-origin") == "*"
+    assert "x-demo-code" in resp.headers.get("access-control-allow-headers", "").lower()

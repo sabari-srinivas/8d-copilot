@@ -40,7 +40,23 @@ async def require_demo_code(request: Request, call_next):
     GET-only surfaces also accept the code as a `code` query parameter. Every other
     call goes through fetch() and sends the X-Demo-Code header — see
     frontend/src/api/client.ts and frontend/src/api/demoCode.ts.
+
+    OPTIONS is exempt unconditionally. FastAPI's `@app.middleware("http")` decorator
+    calls `add_middleware`, which `insert(0, ...)`s into Starlette's middleware list
+    — so this function, added AFTER `CORSMiddleware` above in source order, actually
+    ends up OUTSIDE it in the call chain (runs first on the way in). A browser's CORS
+    preflight is a bare OPTIONS request that never carries X-Demo-Code — that's the
+    entire point of preflight, asking permission before sending the real request's
+    custom headers — so without this exemption every cross-origin gated call's
+    preflight was rejected here with a 401 and no CORS headers at all, before
+    CORSMiddleware ever got a chance to answer it. Found live when the frontend was
+    pointed at the Cloud Run origin directly (see docs/deploy notes) — same-origin
+    deploys never send a preflight, so this was invisible until then. Letting OPTIONS
+    through unconditionally costs nothing: the actual GET/POST that follows is still
+    fully gated below.
     """
+    if request.method == "OPTIONS":
+        return await call_next(request)
     code = get_settings().demo_access_code
     path = request.url.path
     if code and path.startswith("/api/") and path != "/api/health":
