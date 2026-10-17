@@ -40,6 +40,19 @@ export function Done() {
 
   const workOrderSummary = inv?.proposed_actions.find((a) => a.kind === "work_order")?.summary;
 
+  // actions.py returns a null `replies` both when the approver excluded the customer
+  // reply at review AND when the Gemini call that drafts it failed (e.g. a 429) --
+  // the two cases are otherwise indistinguishable in the response. rejected_action_ids
+  // is the only way to tell them apart: only call it "excluded" if the customer-reply
+  // action's id is actually in that list. Defaults to "could not be completed" (not
+  // "excluded") whenever that can't be proven -- e.g. `inv` hasn't loaded yet -- so a
+  // judge watching a quota failure is never told the engineer chose to skip something
+  // they did not.
+  const customerReplyActionId = inv?.proposed_actions.find((a) => a.kind === "customer_reply")?.id;
+  const replyWasExcluded =
+    customerReplyActionId != null &&
+    (state?.result.rejected_action_ids ?? []).includes(customerReplyActionId);
+
   async function copyReply() {
     const text = state?.result.replies?.[lang] ?? "";
     try {
@@ -147,7 +160,11 @@ export function Done() {
                 </button>
               </>
             ) : (
-              <p className="text-sm opacity-60">No customer reply was drafted (excluded at review).</p>
+              <p className="text-sm opacity-60">
+                {replyWasExcluded
+                  ? "No customer reply was drafted (excluded at review)."
+                  : "The customer reply could not be completed."}
+              </p>
             )}
           </Card>
 

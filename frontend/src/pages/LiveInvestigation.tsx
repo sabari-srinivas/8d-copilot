@@ -39,10 +39,12 @@ function StatusBanner({
   status,
   errorMessage,
   onReview,
+  onEvidence,
 }: {
   status: string;
   errorMessage: string | null;
   onReview: () => void;
+  onEvidence: () => void;
 }) {
   if (status === "failed") {
     return (
@@ -64,14 +66,24 @@ function StatusBanner({
             ? "8D draft is ready for review."
             : "Draft needs more data before it can be reviewed."}
         </p>
-        <button
-          type="button"
-          onClick={onReview}
-          className="tap-target rounded-lg px-4 text-sm font-semibold text-white"
-          style={{ background: "var(--green)" }}
-        >
-          {status === "draft_ready" ? "Review 8D" : "Review"}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={onEvidence}
+            className="tap-target rounded-lg px-4 text-sm font-semibold border"
+            style={{ borderColor: "var(--line)" }}
+          >
+            See the evidence
+          </button>
+          <button
+            type="button"
+            onClick={onReview}
+            className="tap-target rounded-lg px-4 text-sm font-semibold text-white"
+            style={{ background: "var(--green)" }}
+          >
+            {status === "draft_ready" ? "Review 8D" : "Review"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -111,6 +123,7 @@ export function LiveInvestigation() {
         status={stream.status}
         errorMessage={stream.errorMessage}
         onReview={() => navigate(`/inv/${id}/review`)}
+        onEvidence={() => navigate(`/inv/${id}/evidence`)}
       />
 
       <WarningsNote warnings={stream.warnings} />

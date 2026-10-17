@@ -21,3 +21,10 @@ frontend/dist/
 # The seven-case harness's result summary is evidence the gate was actually run, not
 # just generated output to regenerate on demand -- keep the latest run committed.
 !backend/data/out/run_cases.json
+
+# frontend/.env.production carries no secret -- just the public Cloud Run API origin
+# and VITE_USE_MOCKS=false -- and it's the only thing that makes `npm run build`
+# reproduce the actual deployed bundle. Committing it is what makes a from-scratch
+# rebuild tonight (or by anyone else) produce the same bundle that's live, instead of
+# silently building against frontend/.env's dev defaults (VITE_USE_MOCKS=true).
+!frontend/.env.production

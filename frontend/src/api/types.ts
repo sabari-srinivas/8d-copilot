@@ -178,6 +178,10 @@ export interface ApproveResult {
   work_order_id: string | null;
   replies: { ja: string; en: string } | null;
   memory_id: string | null;
+  /** Ids the approver excluded at review. A null `*_id`/`replies` field can mean
+   * either "excluded here" or "attempted and failed" (e.g. the customer-reply
+   * Gemini call raised) -- check membership here before claiming exclusion. */
+  rejected_action_ids: string[];
 }
 
 export interface CreateInvestigationResult {

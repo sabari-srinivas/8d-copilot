@@ -196,7 +196,7 @@ export function Review() {
         </p>
       )}
 
-      {!insufficientEvidence && (
+      {inv.status === "draft_ready" && (
         <button
           type="button"
           onClick={onApprove}
