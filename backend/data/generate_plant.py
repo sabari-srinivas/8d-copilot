@@ -25,8 +25,10 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
 from data.constants import (DRIFT_LOT_IDS, END_DATE, GOLDEN_BRIDGES, GOLDEN_LOT,
-                            LOT_NUM_RANGE, OP17_L1_SHARE, OP17_START, PLANT, PRODUCT,
-                            SEED, START_DATE, WO386_DATE, WO388_DATE, WO388_ID)
+                            HISTORICAL_CAPA_COMPLAINT_ID, HISTORICAL_CAPA_DEFECT_TYPE,
+                            HISTORICAL_CAPA_ID, HISTORICAL_CAPA_LINE, LOT_NUM_RANGE,
+                            OP17_L1_SHARE, OP17_START, PLANT, PRODUCT, SEED, START_DATE,
+                            WO386_DATE, WO388_DATE, WO388_ID)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--seed", type=int, default=SEED)
@@ -173,4 +175,51 @@ for col, w in zip("ABCDEFGHIJ", [8, 7, 6, 7, 10, 9, 26, 8, 10, 48]):
     ws.column_dimensions[col].width = w
 wb.save(OUT / "lot_traveler_line2_wk41.xlsx")
 
-print(f"wrote {len(lots)} lots, {len(maint)} work orders, {len(complaints)} complaints to {OUT}")
+# ---------- historical CAPA (effectiveness-verification demo) ----------
+# A second, pre-existing CAPA, entirely decoupled from the lots/process tables above:
+# these rows live only in capa_lots.csv, which joined() never reads and check_plant.py
+# never reads either -- so adding this story cannot move a single p-value computed from
+# lots.csv/process.csv (see agent/tools/capa_check.py's module docstring for why that
+# separation is load-bearing, not incidental, and `python -m data.check_plant` for the
+# proof it still lands H4's Fisher p at 0.01773 unchanged).
+#
+# Story: C-2026-024 (tombstoning, lot L2389, closed 2026-07-16) triggered CAPA-0098 -- a
+# paste-age control procedure, implemented 2026-07-10. A SEPARATE, independently-seeded
+# RNG (args.seed + 1000) generates its lots, so this block can never shift a single draw
+# the lots/process generation above already consumed, no matter where in this file it is
+# inserted. The numbers it produces show the CAPA never actually worked: the tombstoning
+# rate right after the fix (~1.8%) is statistically indistinguishable from before
+# (~2.0%, Welch p ~= 0.48) -- the product's own cynical-but-honest case, the exact
+# failure mode the PRD opens with.
+hist_rng = np.random.default_rng(args.seed + 1000)
+HIST_RATE = 0.018          # same underlying rate before, immediately after and recently:
+                           # a CAPA that visibly changed nothing, by construction
+
+
+def _hist_rows(ids: list[str], dates: pd.DatetimeIndex) -> pd.DataFrame:
+    qty = hist_rng.integers(480, 520, len(ids))
+    defects = hist_rng.poisson(qty * HIST_RATE)
+    return pd.DataFrame({
+        "capa_id": HISTORICAL_CAPA_ID, "lot_id": ids, "line": HISTORICAL_CAPA_LINE,
+        "date": [d.date() for d in dates], "product": PRODUCT,
+        "defect_type": HISTORICAL_CAPA_DEFECT_TYPE, "qty": qty, "defects": defects,
+        "complaint_id": HISTORICAL_CAPA_COMPLAINT_ID,
+    })
+
+
+before_ids = [f"L{n}" for n in range(2380, 2390)]              # L2389 is the complaint lot
+before_dates = pd.date_range("2026-06-01", "2026-07-09", periods=len(before_ids))
+immediate_ids = [f"L{n}" for n in range(2390, 2397)]
+immediate_dates = pd.date_range("2026-07-12", "2026-07-24", periods=len(immediate_ids))
+recent_ids = [f"L{n}" for n in range(2397, 2404)]
+recent_dates = pd.date_range("2026-07-28", "2026-08-15", periods=len(recent_ids))
+
+capa_lots = pd.concat([
+    _hist_rows(before_ids, before_dates),
+    _hist_rows(immediate_ids, immediate_dates),
+    _hist_rows(recent_ids, recent_dates),
+], ignore_index=True)
+capa_lots.to_csv(OUT / "capa_lots.csv", index=False)
+
+print(f"wrote {len(lots)} lots, {len(maint)} work orders, {len(complaints)} complaints, "
+     f"{len(capa_lots)} historical CAPA lots to {OUT}")

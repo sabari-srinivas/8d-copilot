@@ -9,7 +9,10 @@
 # tasks (the bucket by infra/build_rag.py, which also uploaded data/docs/*.md) and are
 # not touched here. The app never reads data/images from GCS — photos are uploaded by
 # the user at investigation time through PLANT_BACKEND-independent multipart POSTs — so
-# this script's job is the four BigQuery tables only.
+# this script's job is the five BigQuery tables only. `capa_lots` is the historical
+# CAPA-effectiveness seed table (data/constants.py HISTORICAL_CAPA_*, agent/tools/
+# capa_check.py) — never joined with lots/process, so it carries no risk to the planted
+# WO-388 drift story.
 set -euo pipefail
 : "${GCP_PROJECT:?}" "${GCP_REGION:?}" "${BQ_DATASET:?}"
 
@@ -18,7 +21,7 @@ OUT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../data/out" && pwd)"
 echo "dataset: $GCP_PROJECT:$BQ_DATASET ($GCP_REGION)"
 bq --location="$GCP_REGION" mk --dataset --force "$GCP_PROJECT:$BQ_DATASET"
 
-for table in lots process maintenance complaints; do
+for table in lots process maintenance complaints capa_lots; do
   csv="$OUT/$table.csv"
   [ -f "$csv" ] || { echo "missing $csv — run \`python -m data.generate_plant\` first" >&2; exit 1; }
   bq load --location="$GCP_REGION" --replace --autodetect --source_format=CSV \

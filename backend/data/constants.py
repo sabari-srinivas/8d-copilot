@@ -80,3 +80,19 @@ PARAM_LABELS = {
 }
 
 REFLOW_PEAK_LIMIT_C = 250.0        # profile limit drawn on the evidence chart
+
+# A historical CAPA, planted purely to make CAPA-effectiveness verification demoable
+# (agent/tools/capa_check.py). Its lots live in their own table (data/out/capa_lots.csv,
+# written by data/generate_plant.py), weeks before the LOT_NUM_RANGE window above and
+# never merged into lots.csv/process.csv -- so this story cannot move a single p-value
+# data/check_plant.py checks. Tied to the closed complaint C-2026-024 (tombstoning,
+# lot L2389) already in the seed complaints table. The seeded numbers show this CAPA
+# never actually worked -- see capa_check.py's module docstring for the exact verdict.
+HISTORICAL_CAPA_ID = "CAPA-0098"
+HISTORICAL_CAPA_DEFECT_TYPE = "tombstoning"
+HISTORICAL_CAPA_LINE = "L1"
+HISTORICAL_CAPA_IMPLEMENTED_ON = "2026-07-10"
+HISTORICAL_CAPA_COMPLAINT_ID = "C-2026-024"
+HISTORICAL_CAPA_LOT = "L2389"
+HISTORICAL_CAPA_PARAMETER = "paste_age_h"
+HISTORICAL_CAPA_ROOT_CAUSE = "Paste past its working window"
