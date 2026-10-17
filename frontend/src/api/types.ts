@@ -188,6 +188,9 @@ export interface CreateInvestigationResult {
 export interface HealthResult {
   ok: boolean;
   model: string;
+  /** Name of the recorded case being replayed, or null when the run is live.
+   * Surfaced as a header chip so a viewer is never unsure which they are watching. */
+  replay: string | null;
   backends: {
     plant: string;
     state: string;

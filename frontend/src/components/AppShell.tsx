@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
+import { getHealth } from "../api/client";
 
 const NAV_ITEMS = [
   { to: "/", label: "Inbox", icon: InboxIcon },
@@ -10,7 +11,23 @@ const NAV_ITEMS = [
 /** Carries the §7 header and footer on every screen: a sidebar nav above 768px,
  * a bottom tab bar below it. One shell, one place that knows the plant name and
  * the signed-in user — nothing else should hard-code them. */
+/** True when the backend is replaying a recorded run instead of calling models.
+ * Surfaced in the header so a viewer is never unsure whether a run is live — the same
+ * honesty rule as labelling the synthetic data. */
+function useReplayCase(): string | null {
+  const [replay, setReplay] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getHealth()
+      .then((h) => { if (!cancelled) setReplay(h.replay ?? null); })
+      .catch(() => { /* health is advisory; a failure must not break the shell */ });
+    return () => { cancelled = true; };
+  }, []);
+  return replay;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
+  const replayCase = useReplayCase();
   return (
     <div className="min-h-dvh flex flex-col">
       <a
@@ -35,6 +52,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         <span className="text-sm opacity-70 truncate">
           Sree Electronics (fictional), Chennai
         </span>
+        {replayCase && (
+          <span
+            className="shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium"
+            style={{ borderColor: "var(--amber)", color: "var(--amber)" }}
+            title={`Replaying the recorded run "${replayCase}" — no model calls`}
+          >
+            Replay
+          </span>
+        )}
         <span className="ml-auto flex items-center gap-2 text-sm shrink-0">
           <span className="hidden sm:inline">Priya R. · Quality Engineer</span>
           <span

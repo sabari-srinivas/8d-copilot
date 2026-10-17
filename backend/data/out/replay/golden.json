@@ -1,0 +1,978 @@
+{
+  "case": "golden",
+  "recorded_from": "inv_11d34b53",
+  "investigation": {
+    "id": "inv_11d34b53",
+    "status": "draft_ready",
+    "complaint_id": "C-2026-031",
+    "lot_id": "L2611",
+    "created": "2026-10-17T04:13:33+00:00",
+    "photo_url": "/api/files/photos/inv_11d34b53.jpg",
+    "defect": {
+      "type": "solder_bridge",
+      "severity": "major",
+      "box": [
+        0.19,
+        0.39,
+        0.05,
+        0.09
+      ],
+      "confidence": 1.0,
+      "visual_evidence": "A continuous blob of solder connects the top two pins of the three-pin header on the left side of the board."
+    },
+    "hypotheses": [
+      {
+        "id": "H1",
+        "category": "Machine",
+        "text": "The reflow oven profile was incorrectly re-tuned after the Zone 7 heater element replacement, leading to excessive solder fluidity and bridging.",
+        "parameter": null,
+        "event_wo_id": "WO-388",
+        "direction": "any"
+      },
+      {
+        "id": "H2",
+        "category": "Material",
+        "text": "The solder paste used for the affected lot was older than optimal, leading to reduced viscosity and slumping, resulting in solder bridges.",
+        "parameter": "paste_age_h",
+        "event_wo_id": null,
+        "direction": "higher"
+      },
+      {
+        "id": "H3",
+        "category": "Method",
+        "text": "The squeegee pressure during solder paste printing was not optimal, leading to either smearing or poor paste definition, which caused solder bridges.",
+        "parameter": "squeegee_pressure_kg",
+        "event_wo_id": null,
+        "direction": "any"
+      },
+      {
+        "id": "H4",
+        "category": "Environment",
+        "text": "High room humidity negatively impacted the solder paste's rheology, causing it to slump and form solder bridges.",
+        "parameter": "room_humidity_pct",
+        "event_wo_id": null,
+        "direction": "higher"
+      },
+      {
+        "id": "H5",
+        "category": "Man",
+        "text": "The specific operator running the line for the affected lot may have contributed to process variations leading to solder bridges.",
+        "parameter": "operator_id",
+        "event_wo_id": null,
+        "direction": "any"
+      }
+    ],
+    "results": [
+      {
+        "hypothesis_id": "H1",
+        "verdict": "supported",
+        "test": "Welch t-test",
+        "p_value": 0.000221,
+        "effect": "+7.6 \u00b0C mean reflow peak temperature",
+        "effect_value": 7.583,
+        "effect_unit": "\u00b0C",
+        "n_defect": 6,
+        "n_good": 27,
+        "group_labels": [
+          "Line 2 after WO-388",
+          "Line 2 before WO-388"
+        ],
+        "chart_url": "/api/files/charts/reflow_d7461d21ea.png"
+      },
+      {
+        "hypothesis_id": "H2",
+        "verdict": "rejected",
+        "test": "Welch t-test",
+        "p_value": 0.470417,
+        "effect": "-2.1 h mean paste age",
+        "effect_value": -2.117,
+        "effect_unit": "h",
+        "n_defect": 6,
+        "n_good": 58,
+        "group_labels": [
+          "Defect lots",
+          "Good lots (same product, 30 days)"
+        ],
+        "chart_url": null
+      },
+      {
+        "hypothesis_id": "H3",
+        "verdict": "rejected",
+        "test": "Welch t-test",
+        "p_value": 0.985885,
+        "effect": "+0.00 kg mean squeegee pressure",
+        "effect_value": 0.001,
+        "effect_unit": "kg",
+        "n_defect": 6,
+        "n_good": 58,
+        "group_labels": [
+          "Defect lots",
+          "Good lots (same product, 30 days)"
+        ],
+        "chart_url": null
+      },
+      {
+        "hypothesis_id": "H4",
+        "verdict": "rejected",
+        "test": "Welch t-test",
+        "p_value": 0.978021,
+        "effect": "+0.06 %RH mean room humidity",
+        "effect_value": 0.061,
+        "effect_unit": "%RH",
+        "n_defect": 6,
+        "n_good": 58,
+        "group_labels": [
+          "Defect lots",
+          "Good lots (same product, 30 days)"
+        ],
+        "chart_url": null
+      },
+      {
+        "hypothesis_id": "H5",
+        "verdict": "inconclusive",
+        "test": "Fisher exact",
+        "p_value": 0.01773,
+        "effect": "+0.49 share of OP-17 lots (67% of defect lots vs 17% of good lots)",
+        "effect_value": 0.494,
+        "effect_unit": "share of lots",
+        "n_defect": 6,
+        "n_good": 58,
+        "group_labels": [
+          "OP-17 lots",
+          "other lots"
+        ],
+        "chart_url": null
+      }
+    ],
+    "citations": [
+      {
+        "label": "PFMEA row 14",
+        "source": "pfmea.md",
+        "ref": "Row 14",
+        "quote": "Mechanism: Solder bridging at Reflow soldering is caused by Reflow peak temperature above profile limit. Effect: Short circuit between adjacent pins from excess solder flowing between adjacent fine-pitch pads; ECU functional failure at customer ICT. Prevention control: Profile verification after any oven maintenance; confirm peak temperature does not exceed the upper profile limit. Detection control: AOI 100% + profile check per shift."
+      },
+      {
+        "label": "PFMEA row 9",
+        "source": "pfmea.md",
+        "ref": "Row 9",
+        "quote": "Mechanism: Insufficient reflow at Reflow soldering is caused by Reflow peak temperature or time above liquidus below profile minimum. Effect: Paste not fully reflowed; grainy, non-wetted joint with open-circuit risk. Prevention control: Profile verification after any oven maintenance; confirm soak and ramp rates meet the paste datasheet. Detection control: AOI 100% + profile check per shift."
+      },
+      {
+        "label": "PFMEA row 5",
+        "source": "pfmea.md",
+        "ref": "Row 5",
+        "quote": "Mechanism: Cold solder joint at Reflow soldering is caused by Reflow peak temperature below profile minimum or insufficient time above liquidus. Effect: Dull, grainy joint with poor mechanical strength; intermittent open under vibration. Prevention control: Profile verification after any oven maintenance; confirm minimum peak temperature and time above liquidus are met. Detection control: AOI 100% plus periodic cross-section audit."
+      },
+      {
+        "label": "Control plan item 6",
+        "source": "control_plan.md",
+        "ref": "Item 6",
+        "quote": "Characteristic: Reflow profile verification after maintenance. Specification: Peak temperature 235-250 \u00b0C, TAL 45-90 s, measured with a profiling board. Method: Profiler run on a golden board. Frequency: After any oven maintenance and once per shift. Reaction plan: hold lots produced since the last verified profile, re-profile the oven, re-qualify before release."
+      },
+      {
+        "label": "Chart: reflow peak temp by lot",
+        "source": "chart",
+        "ref": "/api/files/charts/reflow_d7461d21ea.png",
+        "quote": "Reflow peak temperature by lot, drawn from the lot records \u2014 synthetic demo data."
+      }
+    ],
+    "traveler_rows": [
+      {
+        "lot_id": "L2600",
+        "date": "2026-10-06",
+        "shift": "B",
+        "operator_id": "OP-17",
+        "reflow_peak_temp_c": 242.7,
+        "time_above_liquidus_s": 55.0,
+        "aoi_bridges": 3,
+        "remarks": "",
+        "low_confidence_fields": []
+      },
+      {
+        "lot_id": "L2602",
+        "date": "2026-10-07",
+        "shift": "A",
+        "operator_id": "OP-17",
+        "reflow_peak_temp_c": 246.4,
+        "time_above_liquidus_s": 69.0,
+        "aoi_bridges": 3,
+        "remarks": "",
+        "low_confidence_fields": []
+      },
+      {
+        "lot_id": "L2604",
+        "date": "2026-10-08",
+        "shift": "C",
+        "operator_id": "OP-22",
+        "reflow_peak_temp_c": 246.7,
+        "time_above_liquidus_s": 63.0,
+        "aoi_bridges": 3,
+        "remarks": "",
+        "low_confidence_fields": []
+      },
+      {
+        "lot_id": "L2609",
+        "date": "2026-10-10",
+        "shift": "B",
+        "operator_id": "OP-17",
+        "reflow_peak_temp_c": 252.5,
+        "time_above_liquidus_s": 87.0,
+        "aoi_bridges": 13,
+        "remarks": "oven done after maint, ok to run per vendor",
+        "low_confidence_fields": []
+      },
+      {
+        "lot_id": "L2610",
+        "date": "2026-10-11",
+        "shift": "C",
+        "operator_id": "OP-22",
+        "reflow_peak_temp_c": 253.0,
+        "time_above_liquidus_s": 75.0,
+        "aoi_bridges": 13,
+        "remarks": "AOI few bridges U7, reworked",
+        "low_confidence_fields": []
+      },
+      {
+        "lot_id": "L2611",
+        "date": "2026-10-11",
+        "shift": "A",
+        "operator_id": "OP-17",
+        "reflow_peak_temp_c": 248.7,
+        "time_above_liquidus_s": 83.0,
+        "aoi_bridges": 14,
+        "remarks": "bridges near U7 QFP fine pitch - reworked 9, rest shipped",
+        "low_confidence_fields": []
+      },
+      {
+        "lot_id": "L2612",
+        "date": "2026-10-12",
+        "shift": "B",
+        "operator_id": "OP-17",
+        "reflow_peak_temp_c": 250.8,
+        "time_above_liquidus_s": 87.0,
+        "aoi_bridges": 7,
+        "remarks": "",
+        "low_confidence_fields": []
+      },
+      {
+        "lot_id": "L2613",
+        "date": "2026-10-12",
+        "shift": "C",
+        "operator_id": "OP-22",
+        "reflow_peak_temp_c": null,
+        "time_above_liquidus_s": 78.0,
+        "aoi_bridges": 11,
+        "remarks": "profile printout missing, used last one",
+        "low_confidence_fields": [
+          "reflow_peak_temp_c"
+        ]
+      },
+      {
+        "lot_id": "L2614",
+        "date": "2026-10-13",
+        "shift": "A",
+        "operator_id": "OP-17",
+        "reflow_peak_temp_c": 255.4,
+        "time_above_liquidus_s": 80.0,
+        "aoi_bridges": 12,
+        "remarks": "bridging again. informed QE?",
+        "low_confidence_fields": []
+      }
+    ],
+    "hold_lots": [
+      "L2609",
+      "L2610",
+      "L2611",
+      "L2612",
+      "L2613",
+      "L2614"
+    ],
+    "eight_d": {
+      "D1": {
+        "text": "A cross-functional team has been assembled to address complaint C-2026-031 regarding solder bridging on product ECU-PCB-7, lot L2611.",
+        "citations": []
+      },
+      "D2": {
+        "text": "Complaint C-2026-031 reported solder bridging on product ECU-PCB-7, lot L2611 [complaint C-2026-031]. A total of 14 units out of 500 shipped units were affected [complaint C-2026-031]. The defect is characterized as a continuous blob of solder connecting the top two pins of the three-pin header on the left side of the board [Defect: solder_bridge].",
+        "citations": []
+      },
+      "D3": {
+        "text": "All potentially affected lots have been placed on hold. These include lots L2609, L2610, L2611, L2612, L2613, and L2614 [hold_lots].",
+        "citations": []
+      },
+      "D4": {
+        "text": "The root cause is that the reflow profile was left unverified after the Zone 7 heater element replacement (WO-388) and drifted out of control, leading to an increase in reflow peak temperature across a window of lots [Chart: reflow peak temp by lot]. Most lots produced in the affected window, specifically 5 out of 6 lots (L2609, L2610, L2612, L2613, L2614), exceeded the peak temperature limit of 250.0 \u00b0C [peak_limit_breaches]. The complained-about lot L2611 had a reflow peak temperature of 248.7 \u00b0C [Lot record L2611] and a time above liquidus of 83.0 s [Lot record L2611]. This root cause was verified by a Welch t-test comparing 6 defect lots to 27 good lots, which showed a statistically significant effect of +7.6 \u00b0C mean reflow peak temperature (p-value 0.000221) [Welch t-test]. The issue escaped detection because the reflow profile verification, required after oven maintenance, was pending for WO-388 [Control plan item 6].",
+        "citations": []
+      },
+      "D5": {
+        "text": "Implement a mandatory reflow profile verification procedure to be performed immediately after any reflow oven maintenance, specifically after heater element replacements or re-tuning events. This procedure will require a golden board profiler run to confirm peak temperature is within 235-250 \u00b0C and time above liquidus is within 45-90 s [Control plan item 6].",
+        "citations": []
+      },
+      "D6": {
+        "text": "Effectiveness of the permanent corrective action will be verified by monitoring reflow profile data for all production lots for a period of 3 months following any oven maintenance event. All profile data will be reviewed weekly to ensure adherence to the specified peak temperature and time above liquidus limits [Control plan item 6]. Any deviation will trigger an immediate line stop and re-profiling.",
+        "citations": []
+      },
+      "D7": {
+        "text": "To prevent recurrence, the PFMEA will be updated in row 14 [PFMEA row 14] to strengthen the prevention control for 'Profile verification after any oven maintenance'. The Control Plan will be updated in item 6 [Control plan item 6] to explicitly state the requirement for immediate profile verification after any oven maintenance, including specific sign-off procedures.",
+        "citations": []
+      },
+      "D8": {
+        "text": "The team is commended for their swift action and thorough investigation in identifying the root cause and implementing corrective actions. Their dedication ensures continuous improvement in our manufacturing processes.",
+        "citations": []
+      }
+    },
+    "proposed_actions": [
+      {
+        "id": "A1",
+        "kind": "capa",
+        "summary": "Corrective action for solder bridge on L2611",
+        "payload": {
+          "cause": "The reflow oven profile was incorrectly re-tuned after the Zone 7 heater element replacement, leading to excessive solder fluidity and bridging.",
+          "lot_id": "L2611",
+          "line": "L2"
+        }
+      },
+      {
+        "id": "A2",
+        "kind": "hold",
+        "summary": "Hold 6 lots: L2609\u2013L2614",
+        "payload": {
+          "lots": [
+            "L2609",
+            "L2610",
+            "L2611",
+            "L2612",
+            "L2613",
+            "L2614"
+          ]
+        }
+      },
+      {
+        "id": "A3",
+        "kind": "work_order",
+        "summary": "Verify and re-qualify reflow profile on Line 2",
+        "payload": {
+          "line": "L2",
+          "asset": "Reflow oven",
+          "description": "Verify and re-qualify reflow profile L2"
+        }
+      },
+      {
+        "id": "A4",
+        "kind": "customer_reply",
+        "summary": "Draft reply to the customer in Japanese and English",
+        "payload": {}
+      }
+    ],
+    "memory_hits": [],
+    "missing_data": [],
+    "approver": "",
+    "chart_url": "/api/files/charts/reflow_d7461d21ea.png"
+  },
+  "events": [
+    {
+      "seq": 0,
+      "ts": "2026-10-17T04:13:33Z",
+      "agent": "system",
+      "type": "step_started",
+      "title": "Investigation started",
+      "detail": "Complaint C-2026-031 \u00b7 lot L2611",
+      "data": {}
+    },
+    {
+      "seq": 1,
+      "ts": "2026-10-17T04:13:33Z",
+      "agent": "intake",
+      "type": "step_started",
+      "title": "Reading the customer complaint",
+      "detail": "",
+      "data": {}
+    },
+    {
+      "seq": 2,
+      "ts": "2026-10-17T04:13:33Z",
+      "agent": "vision",
+      "type": "step_started",
+      "title": "Looking at the defect photo",
+      "detail": "",
+      "data": {}
+    },
+    {
+      "seq": 3,
+      "ts": "2026-10-17T04:13:39Z",
+      "agent": "vision",
+      "type": "tool_result",
+      "title": "Solder bridge \u00b7 Major \u00b7 100%",
+      "detail": "A continuous blob of solder connects the top two pins of the three-pin header on the left side of the board.",
+      "data": {
+        "tool": "analyze_defect_image",
+        "summary": "Solder bridge \u00b7 Major \u00b7 100%",
+        "type": "solder_bridge",
+        "severity": "major",
+        "box": [
+          0.19,
+          0.39,
+          0.05,
+          0.09
+        ],
+        "confidence": 1.0,
+        "visual_evidence": "A continuous blob of solder connects the top two pins of the three-pin header on the left side of the board."
+      }
+    },
+    {
+      "seq": 4,
+      "ts": "2026-10-17T04:13:42Z",
+      "agent": "intake",
+      "type": "tool_result",
+      "title": " \u00b7 ECU-PCB-7 \u00b7 lot L2611 \u00b7 14 of 500 units",
+      "detail": "Solder bridging reported, 8D due not stated",
+      "data": {
+        "tool": "parse_complaint",
+        "summary": " \u00b7 ECU-PCB-7 \u00b7 lot L2611 \u00b7 14 of 500 units",
+        "complaint_id": "C-2026-031",
+        "customer": "",
+        "product": "ECU-PCB-7",
+        "lot_id": "L2611",
+        "defect": "Solder bridging",
+        "qty_affected": 14,
+        "qty_shipped": 500,
+        "received": "",
+        "eight_d_due": "",
+        "status": "open",
+        "text": "Solder bridging found on ECU-PCB-7, lot 2611, 14 of 500 units at our incoming ICT. Please contain immediately and send 8D within 10 working days.",
+        "due_in_working_days": 10
+      }
+    },
+    {
+      "seq": 5,
+      "ts": "2026-10-17T04:13:42Z",
+      "agent": "intake",
+      "type": "tool_call",
+      "title": "Reading the shift lead's lot traveler",
+      "detail": "",
+      "data": {
+        "tool": "parse_lot_traveler",
+        "args": {
+          "size_bytes": 5876
+        }
+      }
+    },
+    {
+      "seq": 6,
+      "ts": "2026-10-17T04:13:42Z",
+      "agent": "intake",
+      "type": "tool_result",
+      "title": "9 lot rows recovered from the spreadsheet",
+      "detail": "Could not read with confidence: reflow_peak_temp_c \u2014 flagged for a human to confirm",
+      "data": {
+        "tool": "parse_lot_traveler",
+        "summary": "9 lot rows recovered from the spreadsheet",
+        "n_rows": 9,
+        "low_confidence_fields": [
+          "reflow_peak_temp_c"
+        ]
+      }
+    },
+    {
+      "seq": 7,
+      "ts": "2026-10-17T04:13:42Z",
+      "agent": "investigator",
+      "type": "step_started",
+      "title": "Checking quality memory",
+      "detail": "",
+      "data": {}
+    },
+    {
+      "seq": 8,
+      "ts": "2026-10-17T04:13:43Z",
+      "agent": "investigator",
+      "type": "tool_result",
+      "title": "No similar past case found",
+      "detail": "",
+      "data": {
+        "tool": "search_quality_memory",
+        "summary": "No similar past case found"
+      }
+    },
+    {
+      "seq": 9,
+      "ts": "2026-10-17T04:13:43Z",
+      "agent": "investigator",
+      "type": "tool_call",
+      "title": "Pulling lot genealogy and process window for L2611",
+      "detail": "Line L2, shift A, 64 lots in the last 30 days",
+      "data": {
+        "tool": "get_lot_genealogy",
+        "args": {
+          "lot_id": "L2611"
+        }
+      }
+    },
+    {
+      "seq": 10,
+      "ts": "2026-10-17T04:13:43Z",
+      "agent": "investigator",
+      "type": "tool_result",
+      "title": "Found maintenance event WO-388 on Line 2",
+      "detail": "2026-10-08 \u00b7 Reflow oven zone 7 \u00b7 Zone 7 heater element replaced, profile re-tuned by vendor \u00b7 post-check profile verification pending",
+      "data": {
+        "tool": "get_maintenance_events",
+        "summary": "Found maintenance event WO-388 on Line 2",
+        "wo_id": "WO-388",
+        "line": "L2",
+        "date": "2026-10-08",
+        "asset": "Reflow oven zone 7",
+        "description": "Zone 7 heater element replaced, profile re-tuned by vendor",
+        "status": "closed",
+        "post_check": "profile_verification_pending"
+      }
+    },
+    {
+      "seq": 11,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "hypothesis",
+      "title": "H1 The reflow oven profile was incorrectly re-tuned after the Zone 7 heater element replacement, leading to excessive solder fluidity and bridging.",
+      "detail": "Machine \u00b7 WO-388 \u00b7 expected any",
+      "data": {
+        "id": "H1",
+        "category": "Machine",
+        "text": "The reflow oven profile was incorrectly re-tuned after the Zone 7 heater element replacement, leading to excessive solder fluidity and bridging.",
+        "parameter": null,
+        "event_wo_id": "WO-388",
+        "direction": "any"
+      }
+    },
+    {
+      "seq": 12,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "tool_call",
+      "title": "Testing: The reflow oven profile was incorrectly re-tuned after the Zone 7 heater element replacement, leading to excessive solder fluidity and bridging.",
+      "detail": "Comparing defect lots with good lots of the same product",
+      "data": {
+        "tool": "test_hypothesis",
+        "args": {
+          "hypothesis_id": "H1",
+          "lot_id": "L2611",
+          "parameter": null,
+          "event_wo_id": "WO-388",
+          "direction": "any"
+        }
+      }
+    },
+    {
+      "seq": 13,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "hypothesis_result",
+      "title": "H1 supported",
+      "detail": "Welch t-test, p = 0.0002, +7.6 \u00b0C mean reflow peak temperature",
+      "data": {
+        "hypothesis_id": "H1",
+        "verdict": "supported",
+        "test": "Welch t-test",
+        "p_value": 0.000221,
+        "effect": "+7.6 \u00b0C mean reflow peak temperature",
+        "effect_value": 7.583,
+        "effect_unit": "\u00b0C",
+        "n_defect": 6,
+        "n_good": 27,
+        "group_labels": [
+          "Line 2 after WO-388",
+          "Line 2 before WO-388"
+        ],
+        "chart_url": "/api/files/charts/reflow_d7461d21ea.png"
+      }
+    },
+    {
+      "seq": 14,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "hypothesis",
+      "title": "H2 The solder paste used for the affected lot was older than optimal, leading to reduced viscosity and slumping, resulting in solder bridges.",
+      "detail": "Material \u00b7 paste_age_h \u00b7 expected higher",
+      "data": {
+        "id": "H2",
+        "category": "Material",
+        "text": "The solder paste used for the affected lot was older than optimal, leading to reduced viscosity and slumping, resulting in solder bridges.",
+        "parameter": "paste_age_h",
+        "event_wo_id": null,
+        "direction": "higher"
+      }
+    },
+    {
+      "seq": 15,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "tool_call",
+      "title": "Testing: The solder paste used for the affected lot was older than optimal, leading to reduced viscosity and slumping, resulting in solder bridges.",
+      "detail": "Comparing defect lots with good lots of the same product",
+      "data": {
+        "tool": "test_hypothesis",
+        "args": {
+          "hypothesis_id": "H2",
+          "lot_id": "L2611",
+          "parameter": "paste_age_h",
+          "event_wo_id": null,
+          "direction": "higher"
+        }
+      }
+    },
+    {
+      "seq": 16,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "hypothesis_result",
+      "title": "H2 rejected",
+      "detail": "Welch t-test, p = 0.4704, -2.1 h mean paste age",
+      "data": {
+        "hypothesis_id": "H2",
+        "verdict": "rejected",
+        "test": "Welch t-test",
+        "p_value": 0.470417,
+        "effect": "-2.1 h mean paste age",
+        "effect_value": -2.117,
+        "effect_unit": "h",
+        "n_defect": 6,
+        "n_good": 58,
+        "group_labels": [
+          "Defect lots",
+          "Good lots (same product, 30 days)"
+        ],
+        "chart_url": null
+      }
+    },
+    {
+      "seq": 17,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "hypothesis",
+      "title": "H3 The squeegee pressure during solder paste printing was not optimal, leading to either smearing or poor paste definition, which caused solder bridges.",
+      "detail": "Method \u00b7 squeegee_pressure_kg \u00b7 expected any",
+      "data": {
+        "id": "H3",
+        "category": "Method",
+        "text": "The squeegee pressure during solder paste printing was not optimal, leading to either smearing or poor paste definition, which caused solder bridges.",
+        "parameter": "squeegee_pressure_kg",
+        "event_wo_id": null,
+        "direction": "any"
+      }
+    },
+    {
+      "seq": 18,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "tool_call",
+      "title": "Testing: The squeegee pressure during solder paste printing was not optimal, leading to either smearing or poor paste definition, which caused solder bridges.",
+      "detail": "Comparing defect lots with good lots of the same product",
+      "data": {
+        "tool": "test_hypothesis",
+        "args": {
+          "hypothesis_id": "H3",
+          "lot_id": "L2611",
+          "parameter": "squeegee_pressure_kg",
+          "event_wo_id": null,
+          "direction": "any"
+        }
+      }
+    },
+    {
+      "seq": 19,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "hypothesis_result",
+      "title": "H3 rejected",
+      "detail": "Welch t-test, p = 0.9859, +0.00 kg mean squeegee pressure",
+      "data": {
+        "hypothesis_id": "H3",
+        "verdict": "rejected",
+        "test": "Welch t-test",
+        "p_value": 0.985885,
+        "effect": "+0.00 kg mean squeegee pressure",
+        "effect_value": 0.001,
+        "effect_unit": "kg",
+        "n_defect": 6,
+        "n_good": 58,
+        "group_labels": [
+          "Defect lots",
+          "Good lots (same product, 30 days)"
+        ],
+        "chart_url": null
+      }
+    },
+    {
+      "seq": 20,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "hypothesis",
+      "title": "H4 High room humidity negatively impacted the solder paste's rheology, causing it to slump and form solder bridges.",
+      "detail": "Environment \u00b7 room_humidity_pct \u00b7 expected higher",
+      "data": {
+        "id": "H4",
+        "category": "Environment",
+        "text": "High room humidity negatively impacted the solder paste's rheology, causing it to slump and form solder bridges.",
+        "parameter": "room_humidity_pct",
+        "event_wo_id": null,
+        "direction": "higher"
+      }
+    },
+    {
+      "seq": 21,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "tool_call",
+      "title": "Testing: High room humidity negatively impacted the solder paste's rheology, causing it to slump and form solder bridges.",
+      "detail": "Comparing defect lots with good lots of the same product",
+      "data": {
+        "tool": "test_hypothesis",
+        "args": {
+          "hypothesis_id": "H4",
+          "lot_id": "L2611",
+          "parameter": "room_humidity_pct",
+          "event_wo_id": null,
+          "direction": "higher"
+        }
+      }
+    },
+    {
+      "seq": 22,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "hypothesis_result",
+      "title": "H4 rejected",
+      "detail": "Welch t-test, p = 0.9780, +0.06 %RH mean room humidity",
+      "data": {
+        "hypothesis_id": "H4",
+        "verdict": "rejected",
+        "test": "Welch t-test",
+        "p_value": 0.978021,
+        "effect": "+0.06 %RH mean room humidity",
+        "effect_value": 0.061,
+        "effect_unit": "%RH",
+        "n_defect": 6,
+        "n_good": 58,
+        "group_labels": [
+          "Defect lots",
+          "Good lots (same product, 30 days)"
+        ],
+        "chart_url": null
+      }
+    },
+    {
+      "seq": 23,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "hypothesis",
+      "title": "H5 The specific operator running the line for the affected lot may have contributed to process variations leading to solder bridges.",
+      "detail": "Man \u00b7 operator_id \u00b7 expected any",
+      "data": {
+        "id": "H5",
+        "category": "Man",
+        "text": "The specific operator running the line for the affected lot may have contributed to process variations leading to solder bridges.",
+        "parameter": "operator_id",
+        "event_wo_id": null,
+        "direction": "any"
+      }
+    },
+    {
+      "seq": 24,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "tool_call",
+      "title": "Testing: The specific operator running the line for the affected lot may have contributed to process variations leading to solder bridges.",
+      "detail": "Comparing defect lots with good lots of the same product",
+      "data": {
+        "tool": "test_hypothesis",
+        "args": {
+          "hypothesis_id": "H5",
+          "lot_id": "L2611",
+          "parameter": "operator_id",
+          "event_wo_id": null,
+          "direction": "any"
+        }
+      }
+    },
+    {
+      "seq": 25,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "investigator",
+      "type": "hypothesis_result",
+      "title": "H5 inconclusive",
+      "detail": "Fisher exact, p = 0.0177, +0.49 share of OP-17 lots (67% of defect lots vs 17% of good lots)",
+      "data": {
+        "hypothesis_id": "H5",
+        "verdict": "inconclusive",
+        "test": "Fisher exact",
+        "p_value": 0.01773,
+        "effect": "+0.49 share of OP-17 lots (67% of defect lots vs 17% of good lots)",
+        "effect_value": 0.494,
+        "effect_unit": "share of lots",
+        "n_defect": 6,
+        "n_good": 58,
+        "group_labels": [
+          "OP-17 lots",
+          "other lots"
+        ],
+        "chart_url": null
+      }
+    },
+    {
+      "seq": 26,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "evidence",
+      "type": "step_started",
+      "title": "Looking for the PFMEA row and control plan item that cover this",
+      "detail": "",
+      "data": {}
+    },
+    {
+      "seq": 27,
+      "ts": "2026-10-17T04:13:56Z",
+      "agent": "evidence",
+      "type": "tool_call",
+      "title": "Searching the quality documents",
+      "detail": "solder bridge caused by : The reflow oven profile was incorrectly re-tuned after the Zone 7 heater element replacement, leading to excessive solder fluidity and bridging.",
+      "data": {
+        "tool": "search_quality_docs",
+        "args": {
+          "query": "solder bridge caused by : The reflow oven profile was incorrectly re-tuned after the Zone 7 heater element replacement, leading to excessive solder fluidity and bridging.",
+          "k": 3
+        }
+      }
+    },
+    {
+      "seq": 28,
+      "ts": "2026-10-17T04:13:57Z",
+      "agent": "evidence",
+      "type": "citation",
+      "title": "PFMEA row 14",
+      "detail": "Mechanism: Solder bridging at Reflow soldering is caused by Reflow peak temperature above profile limit. Effect: Short circuit between adjacent pins from excess solder flowing between adjacent fine-pitch pads; ECU functional failure at customer ICT. Prevention control: Profile verification after any oven maintenance; confirm peak temperature does not exceed the upper profile limit. Detection control: AOI 100% + profile check per shift.",
+      "data": {
+        "label": "PFMEA row 14",
+        "source": "pfmea.md",
+        "ref": "Row 14",
+        "quote": "Mechanism: Solder bridging at Reflow soldering is caused by Reflow peak temperature above profile limit. Effect: Short circuit between adjacent pins from excess solder flowing between adjacent fine-pitch pads; ECU functional failure at customer ICT. Prevention control: Profile verification after any oven maintenance; confirm peak temperature does not exceed the upper profile limit. Detection control: AOI 100% + profile check per shift."
+      }
+    },
+    {
+      "seq": 29,
+      "ts": "2026-10-17T04:13:57Z",
+      "agent": "evidence",
+      "type": "citation",
+      "title": "PFMEA row 9",
+      "detail": "Mechanism: Insufficient reflow at Reflow soldering is caused by Reflow peak temperature or time above liquidus below profile minimum. Effect: Paste not fully reflowed; grainy, non-wetted joint with open-circuit risk. Prevention control: Profile verification after any oven maintenance; confirm soak and ramp rates meet the paste datasheet. Detection control: AOI 100% + profile check per shift.",
+      "data": {
+        "label": "PFMEA row 9",
+        "source": "pfmea.md",
+        "ref": "Row 9",
+        "quote": "Mechanism: Insufficient reflow at Reflow soldering is caused by Reflow peak temperature or time above liquidus below profile minimum. Effect: Paste not fully reflowed; grainy, non-wetted joint with open-circuit risk. Prevention control: Profile verification after any oven maintenance; confirm soak and ramp rates meet the paste datasheet. Detection control: AOI 100% + profile check per shift."
+      }
+    },
+    {
+      "seq": 30,
+      "ts": "2026-10-17T04:13:57Z",
+      "agent": "evidence",
+      "type": "citation",
+      "title": "PFMEA row 5",
+      "detail": "Mechanism: Cold solder joint at Reflow soldering is caused by Reflow peak temperature below profile minimum or insufficient time above liquidus. Effect: Dull, grainy joint with poor mechanical strength; intermittent open under vibration. Prevention control: Profile verification after any oven maintenance; confirm minimum peak temperature and time above liquidus are met. Detection control: AOI 100% plus periodic cross-section audit.",
+      "data": {
+        "label": "PFMEA row 5",
+        "source": "pfmea.md",
+        "ref": "Row 5",
+        "quote": "Mechanism: Cold solder joint at Reflow soldering is caused by Reflow peak temperature below profile minimum or insufficient time above liquidus. Effect: Dull, grainy joint with poor mechanical strength; intermittent open under vibration. Prevention control: Profile verification after any oven maintenance; confirm minimum peak temperature and time above liquidus are met. Detection control: AOI 100% plus periodic cross-section audit."
+      }
+    },
+    {
+      "seq": 31,
+      "ts": "2026-10-17T04:13:57Z",
+      "agent": "evidence",
+      "type": "tool_call",
+      "title": "Searching the quality documents",
+      "detail": "what must be done to verify the reflow profile after oven maintenance, and which control detects it",
+      "data": {
+        "tool": "search_quality_docs",
+        "args": {
+          "query": "what must be done to verify the reflow profile after oven maintenance, and which control detects it",
+          "k": 3
+        }
+      }
+    },
+    {
+      "seq": 32,
+      "ts": "2026-10-17T04:13:57Z",
+      "agent": "evidence",
+      "type": "citation",
+      "title": "Control plan item 6",
+      "detail": "Characteristic: Reflow profile verification after maintenance. Specification: Peak temperature 235-250 \u00b0C, TAL 45-90 s, measured with a profiling board. Method: Profiler run on a golden board. Frequency: After any oven maintenance and once per shift. Reaction plan: hold lots produced since the last verified profile, re-profile the oven, re-qualify before release.",
+      "data": {
+        "label": "Control plan item 6",
+        "source": "control_plan.md",
+        "ref": "Item 6",
+        "quote": "Characteristic: Reflow profile verification after maintenance. Specification: Peak temperature 235-250 \u00b0C, TAL 45-90 s, measured with a profiling board. Method: Profiler run on a golden board. Frequency: After any oven maintenance and once per shift. Reaction plan: hold lots produced since the last verified profile, re-profile the oven, re-qualify before release."
+      }
+    },
+    {
+      "seq": 33,
+      "ts": "2026-10-17T04:13:57Z",
+      "agent": "evidence",
+      "type": "citation",
+      "title": "Chart: reflow peak temp by lot",
+      "detail": "Reflow peak temperature by lot, drawn from the lot records \u2014 synthetic demo data.",
+      "data": {
+        "label": "Chart: reflow peak temp by lot",
+        "source": "chart",
+        "ref": "/api/files/charts/reflow_d7461d21ea.png",
+        "quote": "Reflow peak temperature by lot, drawn from the lot records \u2014 synthetic demo data."
+      }
+    },
+    {
+      "seq": 34,
+      "ts": "2026-10-17T04:13:57Z",
+      "agent": "evidence",
+      "type": "tool_result",
+      "title": "5 citations gathered",
+      "detail": "PFMEA row 14 \u00b7 PFMEA row 9 \u00b7 PFMEA row 5 \u00b7 Control plan item 6 \u00b7 Chart: reflow peak temp by lot",
+      "data": {
+        "tool": "search_quality_docs",
+        "summary": "5 citations gathered",
+        "labels": [
+          "PFMEA row 14",
+          "PFMEA row 9",
+          "PFMEA row 5",
+          "Control plan item 6",
+          "Chart: reflow peak temp by lot"
+        ]
+      }
+    },
+    {
+      "seq": 35,
+      "ts": "2026-10-17T04:13:57Z",
+      "agent": "writer",
+      "type": "step_started",
+      "title": "Drafting the 8D",
+      "detail": "",
+      "data": {}
+    },
+    {
+      "seq": 36,
+      "ts": "2026-10-17T04:14:07Z",
+      "agent": "writer",
+      "type": "draft_ready",
+      "title": "8D draft ready for review",
+      "detail": "",
+      "data": {
+        "status": "draft_ready"
+      }
+    },
+    {
+      "seq": 37,
+      "ts": "2026-10-17T04:14:07Z",
+      "agent": "system",
+      "type": "done",
+      "title": "Investigation complete",
+      "detail": "",
+      "data": {}
+    }
+  ]
+}

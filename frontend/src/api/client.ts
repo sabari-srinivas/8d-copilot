@@ -4,6 +4,7 @@ import type {
   ApproveResult,
   Complaint,
   CreateInvestigationResult,
+  HealthResult,
   Investigation,
   MemoryEntry,
 } from "./types";
@@ -78,3 +79,15 @@ export const approve = (id: string, body: ApproveBody): Promise<ApproveResult> =
 
 export const listMemory = (): Promise<MemoryEntry[]> =>
   USE_MOCKS ? mockMemory() : json<MemoryEntry[]>("/memory");
+
+/** Health is advisory — callers must tolerate failure. In mock mode there is no backend,
+ * so report a live (non-replay) run rather than pretending to know. */
+export const getHealth = (): Promise<HealthResult> =>
+  USE_MOCKS
+    ? Promise.resolve({
+        ok: true,
+        model: "",
+        replay: null,
+        backends: { plant: "mock", state: "mock", docs: "mock", files: "mock" },
+      })
+    : json<HealthResult>("/health");

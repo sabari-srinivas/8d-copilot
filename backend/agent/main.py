@@ -43,6 +43,9 @@ class ApproveRequest(BaseModel):
 def health():
     s = get_settings()
     return {"ok": True, "model": s.gemini_model,
+            # Replay is surfaced so the UI can label it. A viewer must never be unsure
+            # whether they are watching a live run.
+            "replay": s.replay_case or None,
             "backends": {"plant": s.plant_backend, "state": s.state_backend,
                          "docs": s.docs_backend, "files": s.files_backend}}
 
@@ -72,6 +75,14 @@ async def create_investigation(
 
 async def _run(inv_id: str):
     try:
+        # Replay mode (REPLAY_CASE) streams a recorded run back with no model calls, so a
+        # recorded demo survives a Vertex quota refusal. It announces itself in /api/health
+        # and in the UI header — a viewer must never be unsure whether a run is live.
+        case = get_settings().replay_case
+        if case:
+            from agent.replay import replay
+            await replay(case, inv_id)
+            return
         await run_investigation(inv_id)
     except Exception as exc:
         log.exception("background investigation %s failed", inv_id)
