@@ -234,6 +234,148 @@ class VoiceNote(BaseModel):
         return v
 
 
+class CapaRecord(BaseModel):
+    """One row of `GET /api/capas` -- a corrective action created by a live approval
+    (agent/agents/actions.py's apply_approval) or the seeded historical CAPA-0098
+    (agent/tools/capa_check.seed_historical_capa). `defect_type`/`line`/`memory_id`
+    are filled in from the quality-memory entry this CAPA produced (matched by
+    `capa_id`, same linkage agent/tools/memory.save_quality_memory writes) -- a CAPA
+    record itself carries no defect_type/line of its own. `effectiveness` is populated
+    (agent/tools/dashboard.list_capas_with_effectiveness) only when both are known;
+    computed by the SAME rule as every other verdict in this product
+    (agent/tools/capa_check.verify_capa_effectiveness), never guessed."""
+    id: str
+    investigation_id: str = ""
+    complaint_id: str = ""
+    lot_id: str = ""
+    root_cause: str = ""
+    owner: str = ""
+    opened: str = ""
+    status: str = "open"
+    summary: str = ""
+    approver: str = ""
+    note: str = ""
+    defect_type: str = ""
+    line: str = ""
+    memory_id: str = ""
+    effectiveness: CapaEffectiveness | None = None
+
+
+class FirstPassYield(BaseModel):
+    units: int
+    defects: int
+    pct: float
+
+
+class OpenEightDs(BaseModel):
+    count: int
+    soonest_due_working_days: int | None = None
+
+
+class CapaDashboardSummary(BaseModel):
+    """CAPA-effectiveness, rolled up for the dashboard tile -- PRD's own cynical
+    question made literal: not "how many CAPAs are open" alone, but "of the ones we
+    can actually judge, how many came back". `recurrence_rate` is `None` until at
+    least one CAPA has a determinate verdict (not `insufficient_data`) -- never a
+    fabricated 0%."""
+    open: int
+    recurrence_rate: float | None = None
+    n_evaluated: int = 0
+
+
+class DefectRateByLinePoint(BaseModel):
+    lot_id: str
+    date: str
+    rate_pct: float
+
+
+class DefectRateByLine(BaseModel):
+    """The dashboard's hero chart: defect rate by lot, Line 1 vs Line 2, with a
+    marker at the work order that planted the drift (data/constants.WO388_ID).
+    `rate_pct` and the two averages are already *100 (a percentage), not a fraction."""
+    line1: list[DefectRateByLinePoint] = Field(default_factory=list)
+    line2: list[DefectRateByLinePoint] = Field(default_factory=list)
+    line1_avg_pct: float
+    line2_avg_pct: float
+    marker_date: str
+    marker_label: str
+
+
+class DefectPareto(BaseModel):
+    solder_bridge: int
+    other: int
+
+
+class SpcPoint(BaseModel):
+    lot_id: str
+    date: str
+    value: float
+
+
+class SpcReflowPeak(BaseModel):
+    limit_c: float
+    points: list[SpcPoint] = Field(default_factory=list)
+
+
+class DashboardCharts(BaseModel):
+    defect_rate_by_line: DefectRateByLine
+    defect_pareto: DefectPareto
+    spc_reflow_peak: SpcReflowPeak
+
+
+class DashboardSummary(BaseModel):
+    """`GET /api/dashboard/summary` -- every number on it computed live from the same
+    plant/state data every other endpoint reads (agent/tools/dashboard.py), never
+    hard-coded: this dataset's numbers are planted facts of data/generate_plant.py's
+    synthetic scenario, not constants, and must stay live if the seed ever changes."""
+    first_pass_yield: FirstPassYield
+    open_eight_ds: OpenEightDs
+    capas: CapaDashboardSummary
+    lots_on_hold: int
+    charts: DashboardCharts
+
+
+class PlantLot(BaseModel):
+    """One row of `GET /api/plant/lots` -- lots.csv joined to process.csv (the same
+    join agent/tools/plant_data.joined() performs), the full per-lot receipts behind
+    the dashboard's yield/Pareto/SPC tiles. Deliberately includes `operator_id` and
+    `shift` (this is raw plant data, the same columns a real MES would show) but the
+    Plant screen must never render an aggregate "defects by operator/shift" view --
+    the product's own rule that operator error is never a root cause (CLAUDE.md)."""
+    lot_id: str
+    line: str
+    shift: str
+    date: str
+    product: str
+    qty: int
+    paste_lot: str
+    stencil_id: str
+    operator_id: str
+    defects_solder_bridge: int
+    defects_other: int
+    bridge_rate: float
+    ship_status: str
+    reflow_peak_temp_c: float
+    time_above_liquidus_s: float
+    preheat_ramp_c_per_s: float
+    soak_time_s: float
+    conveyor_speed_cm_min: float
+    paste_age_h: float
+    room_humidity_pct: float
+    stencil_print_count: float
+    squeegee_pressure_kg: float
+
+
+class MaintenanceEvent(BaseModel):
+    wo_id: str
+    line: str
+    date: str
+    asset: str
+    description: str
+    status: str
+    post_check: str
+
+
 class Passage(BaseModel):
     source: str
     ref: str

@@ -7,6 +7,7 @@ from typing import Protocol
 import pandas as pd
 
 from agent.config import get_settings
+from agent.models import MaintenanceEvent, PlantLot
 from data.constants import (CATEGORICAL_PARAMS, DEFECT_RATE_THRESHOLD, PARAM_UNITS,
                             PRODUCT, REFLOW_PEAK_LIMIT_C)
 
@@ -213,6 +214,48 @@ def get_capa_defect_series(capa_id: str, line: str, defect_type: str) -> pd.Data
     df = df[df.line == line].copy()
     df["rate"] = df["bridge_rate"] if defect_type == "solder_bridge" else df.defects_other / df.qty
     return df[["lot_id", "date", "rate"]].sort_values("date").reset_index(drop=True)
+
+
+def list_plant_lots() -> list[PlantLot]:
+    """GET /api/plant/lots -- the Plant tab's receipts: all 64 lots joined to their 9
+    measured process parameters. Deliberately returns every lot, not a 30-day window
+    (unlike get_process_window) -- this is the "click through and see the data is
+    real" screen, not a statistics input."""
+    df = joined().sort_values("date")
+    return [
+        PlantLot(
+            lot_id=r.lot_id, line=r.line, shift=r.shift,
+            date=r.date.strftime("%Y-%m-%d"), product=r.product, qty=int(r.qty),
+            paste_lot=r.paste_lot, stencil_id=r.stencil_id, operator_id=r.operator_id,
+            defects_solder_bridge=int(r.defects_solder_bridge),
+            defects_other=int(r.defects_other), bridge_rate=round(float(r.bridge_rate), 4),
+            ship_status=r.ship_status, reflow_peak_temp_c=float(r.reflow_peak_temp_c),
+            time_above_liquidus_s=float(r.time_above_liquidus_s),
+            preheat_ramp_c_per_s=float(r.preheat_ramp_c_per_s),
+            soak_time_s=float(r.soak_time_s),
+            conveyor_speed_cm_min=float(r.conveyor_speed_cm_min),
+            paste_age_h=float(r.paste_age_h), room_humidity_pct=float(r.room_humidity_pct),
+            stencil_print_count=float(r.stencil_print_count),
+            squeegee_pressure_kg=float(r.squeegee_pressure_kg),
+        )
+        for r in df.itertuples()
+    ]
+
+
+def list_maintenance() -> list[MaintenanceEvent]:
+    """GET /api/plant/maintenance -- all 10 work orders across both lines (unlike
+    get_maintenance_events, which filters to one line for the investigator).
+
+    `pd.read_csv`'s default `na_values` treats the literal text "n/a" already written
+    into maintenance.csv (data/generate_plant.py's post_check column) as a MISSING
+    value, not the string "n/a" -- so CsvPlantStore().maintenance() hands this back as
+    float NaN, which MaintenanceEvent (a plain `str` field) rejects. `fillna` restores
+    the original literal text; BigQueryPlantStore never has this problem (a DB column
+    has no such "n/a" sentinel), so this is CSV-backend-only, same as
+    plant_data._stringify_dates's DATE-column fixup above.
+    """
+    m = get_store().maintenance().fillna("n/a").sort_values("date")
+    return [MaintenanceEvent(**row) for row in m.to_dict("records")]
 
 
 def get_comparison_groups(lot_id: str, product: str = PRODUCT, days: int = 30) -> dict:

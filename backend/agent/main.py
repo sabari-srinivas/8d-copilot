@@ -13,8 +13,12 @@ from agent.config import get_settings
 from agent.events import TERMINAL, bus
 from agent.orchestrator import format_error_message, run_investigation, start
 from agent.state import get_state
+from agent.tools.capa_check import seed_historical_capa
+from agent.tools.dashboard import get_dashboard_summary, list_capas_with_effectiveness
 from agent.tools.intake_tools import list_complaints
 from agent.tools.memory import list_quality_memory, seed_historical_quality_memory
+from agent.tools.plant_data import list_maintenance, list_plant_lots
+from agent.tools.seed_past_investigations import seed_past_investigations
 from agent.tools.storage import get_local_path
 
 logging.basicConfig(level=logging.INFO,
@@ -35,6 +39,19 @@ async def lifespan(app: FastAPI):
         seed_historical_quality_memory()
     except Exception as exc:
         log.warning("historical quality-memory seed failed: %s", exc.__class__.__name__)
+    try:
+        # The CAPA-0098 *record* counterpart to the memory entry seeded above --
+        # without it, GET /api/capas and the dashboard's recurrence-rate tile have no
+        # CAPA to show the "never_worked" verdict on (see capa_check.seed_historical_capa).
+        seed_historical_capa()
+    except Exception as exc:
+        log.warning("historical CAPA seed failed: %s", exc.__class__.__name__)
+    try:
+        # The five PAST_INVESTIGATIONS CAPA + memory pairs behind the Complaints
+        # sidebar's "Past investigations" group (see seed_past_investigations.py).
+        seed_past_investigations()
+    except Exception as exc:
+        log.warning("past-investigations seed failed: %s", exc.__class__.__name__)
     yield
 
 
@@ -222,6 +239,26 @@ async def approve(inv_id: str, body: ApproveRequest):
 @app.get("/api/memory")
 def memory():
     return [m.model_dump() for m in list_quality_memory()]
+
+
+@app.get("/api/dashboard/summary")
+def dashboard_summary():
+    return get_dashboard_summary().model_dump()
+
+
+@app.get("/api/capas")
+def capas():
+    return [c.model_dump() for c in list_capas_with_effectiveness()]
+
+
+@app.get("/api/plant/lots")
+def plant_lots():
+    return [lot.model_dump() for lot in list_plant_lots()]
+
+
+@app.get("/api/plant/maintenance")
+def plant_maintenance():
+    return [m.model_dump() for m in list_maintenance()]
 
 
 @app.get("/api/files/{key:path}")

@@ -96,3 +96,79 @@ HISTORICAL_CAPA_COMPLAINT_ID = "C-2026-024"
 HISTORICAL_CAPA_LOT = "L2389"
 HISTORICAL_CAPA_PARAMETER = "paste_age_h"
 HISTORICAL_CAPA_ROOT_CAUSE = "Paste past its working window"
+
+# Five more completed, closed investigations -- populate the Complaints sidebar's
+# "Past investigations" group and the CAPA/Memory tabs with history beyond the single
+# CAPA-0098 story above. Each ties one closed complaint (data/generate_plant.py builds
+# the complaints.csv row from this) to one CAPA and quality-memory record
+# (agent/tools/seed_past_investigations.py), sharing one id suffix for easy
+# cross-reference between tabs. `lot_id` is a REAL lot from LOT_NUM_RANGE (so the
+# Plant tab's per-lot row is genuine, clickable evidence, not an invented id).
+#
+# `implemented_on` deliberately predates LOT_NUM_RANGE's date window (2026-09-14
+# onward) -- the same reason HISTORICAL_CAPA_ID needed its own capa_lots.csv table
+# (see capa_check.py's module docstring): there is no real per-lot history before the
+# window to judge effectiveness against, so verify_capa_effectiveness's live-data
+# fallback honestly returns "insufficient_data" for all five, rather than a verdict
+# invented just to look complete. That is itself a true, useful demonstration of the
+# fourth CapaVerdict value -- not a shortcut taken to avoid building five more
+# bespoke capa_lots.csv series.
+PAST_INVESTIGATIONS = [
+    {
+        "complaint_id": "C-2026-012", "capa_id": "CAPA-0083", "memory_id": "MEM-0083",
+        "investigation_id": "inv_hist_0012",
+        "customer": "Vindhya Auto Systems (fictional)", "product": PRODUCT,
+        "lot_id": "L2567", "line": "L1", "defect_type": "contamination",
+        "text": "Flux residue found under components on ECU-PCB-7, lot 2567, 2 of "
+               "498 units at incoming inspection. Please investigate and provide 8D.",
+        "received": "2026-07-20", "eight_d_due": "2026-08-03",
+        "root_cause": "Flux residue from an overdue stencil-cleaning cycle on Line 1.",
+        "parameter": "squeegee_pressure_kg", "implemented_on": "2026-07-25",
+    },
+    {
+        "complaint_id": "C-2026-015", "capa_id": "CAPA-0088", "memory_id": "MEM-0088",
+        "investigation_id": "inv_hist_0015",
+        "customer": "Meridian Auto Electronics (fictional)", "product": PRODUCT,
+        "lot_id": "L2578", "line": "L2", "defect_type": "misalignment",
+        "text": "Component misalignment on ECU-PCB-7, lot 2578, 4 of 503 units found "
+               "at AOI. Please investigate and provide 8D.",
+        "received": "2026-08-05", "eight_d_due": "2026-08-19",
+        "root_cause": "Stencil-to-board registration drift from worn fiducial clamps "
+                      "on Line 2.",
+        "parameter": "stencil_print_count", "implemented_on": "2026-08-10",
+    },
+    {
+        "complaint_id": "C-2026-019", "capa_id": "CAPA-0091", "memory_id": "MEM-0091",
+        "investigation_id": "inv_hist_0019",
+        "customer": "Hoshino Denso (fictional)", "product": PRODUCT,
+        "lot_id": "L2585", "line": "L1", "defect_type": "missing_component",
+        "text": "Missing 0402 resistor at position R18 on ECU-PCB-7, lot 2585, 1 of "
+               "501 units found at customer incoming inspection. Please investigate "
+               "and provide 8D.",
+        "received": "2026-08-22", "eight_d_due": "2026-09-05",
+        "root_cause": "Feeder 9 intermittent jam dropping 0402 resistors on Line 1.",
+        "parameter": "", "implemented_on": "2026-08-27",
+    },
+    {
+        "complaint_id": "C-2026-022", "capa_id": "CAPA-0094", "memory_id": "MEM-0094",
+        "investigation_id": "inv_hist_0022",
+        "customer": "Kaveri Motors (fictional)", "product": PRODUCT,
+        "lot_id": "L2592", "line": "L2", "defect_type": "solder_bridge",
+        "text": "Solder bridging on ECU-PCB-7, lot 2592, 6 of 497 units found at "
+               "incoming inspection. Please contain and provide 8D.",
+        "received": "2026-09-02", "eight_d_due": "2026-09-16",
+        "root_cause": "Paste exceeded its working window on second shift, Line 2.",
+        "parameter": "paste_age_h", "implemented_on": "2026-09-05",
+    },
+    {
+        "complaint_id": "C-2026-026", "capa_id": "CAPA-0097", "memory_id": "MEM-0097",
+        "investigation_id": "inv_hist_0026",
+        "customer": "Araku Components (fictional)", "product": PRODUCT,
+        "lot_id": "L2599", "line": "L1", "defect_type": "scratch",
+        "text": "PCB edge scratches on ECU-PCB-7, lot 2599, 3 of 505 units found at "
+               "incoming inspection. Please investigate and provide 8D.",
+        "received": "2026-09-10", "eight_d_due": "2026-09-24",
+        "root_cause": "Misaligned conveyor guide rail scoring board edges on Line 1.",
+        "parameter": "conveyor_speed_cm_min", "implemented_on": "2026-09-12",
+    },
+]

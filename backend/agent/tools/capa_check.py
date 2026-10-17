@@ -41,9 +41,12 @@ import pandas as pd
 from scipy import stats
 
 from agent.models import CapaEffectiveness, CapaVerdict
+from agent.state import get_state
 from agent.tools.plant_data import get_capa_defect_series
 from agent.tools.stats_verdict import classify
-from data.constants import DEFECT_RATE_THRESHOLD
+from data.constants import (DEFECT_RATE_THRESHOLD, HISTORICAL_CAPA_COMPLAINT_ID,
+                            HISTORICAL_CAPA_ID, HISTORICAL_CAPA_IMPLEMENTED_ON,
+                            HISTORICAL_CAPA_LOT, HISTORICAL_CAPA_ROOT_CAUSE)
 
 MIN_GROUP = 3                       # fewest lots required in EACH of before/immediate/recent
 MIN_EFFECT = DEFECT_RATE_THRESHOLD  # see module docstring: not a new, invented magnitude
@@ -115,3 +118,32 @@ def verify_capa_effectiveness(capa_id: str, defect_type: str, line: str,
         n_recent=n_recent, group_labels=group_labels, before_rate=round(before_rate, 4),
         immediate_rate=round(immediate_rate, 4), recent_rate=round(recent_rate, 4),
         p_immediate=round(p_immediate, 6), p_recent=round(p_recent, 6))
+
+
+def seed_historical_capa() -> str | None:
+    """Pre-loads the CAPA-0098 *record* (`GET /api/capas`'s view of it), the
+    counterpart to `agent/tools/memory.seed_historical_quality_memory`'s memory entry
+    for the same CAPA -- without this, the dashboard's "never_worked" verdict has a
+    MemoryEntry to point at but no CapaRecord to show it on. Written through
+    `state.save_record`, not `state.create_record`: this is a fixed, pre-existing id
+    that must never consume (or collide with) the live CAPA-0142, CAPA-0143... counter
+    a real approval advances (see state.save_record's docstring).
+
+    Idempotent, same convention as seed_historical_quality_memory: a second call
+    (e.g. a server restart against a long-lived store) is a no-op. Returns the id on
+    the call that actually seeds it, None otherwise.
+    """
+    state = get_state()
+    if state.get_record("capa", HISTORICAL_CAPA_ID) is not None:
+        return None
+    state.save_record("capa", HISTORICAL_CAPA_ID, {
+        "investigation_id": "inv_hist_0024", "complaint_id": HISTORICAL_CAPA_COMPLAINT_ID,
+        "lot_id": HISTORICAL_CAPA_LOT, "root_cause": HISTORICAL_CAPA_ROOT_CAUSE,
+        "owner": "Quality Manager", "opened": HISTORICAL_CAPA_IMPLEMENTED_ON,
+        # The complaint it closed (C-2026-024) is itself closed -- this CAPA was
+        # signed off at the time, even though the dashboard now shows it never
+        # actually worked. That gap IS the PRD's point, not a bug to paper over.
+        "status": "closed", "summary": "Paste-age control procedure for tombstoning.",
+        "approver": "Priya R.", "note": "",
+    })
+    return HISTORICAL_CAPA_ID

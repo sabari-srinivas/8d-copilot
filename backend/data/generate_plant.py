@@ -28,8 +28,8 @@ from openpyxl.styles import Font, PatternFill
 from data.constants import (DRIFT_LOT_IDS, END_DATE, GOLDEN_BRIDGES, GOLDEN_LOT,
                             HISTORICAL_CAPA_COMPLAINT_ID, HISTORICAL_CAPA_DEFECT_TYPE,
                             HISTORICAL_CAPA_ID, HISTORICAL_CAPA_LINE, LOT_NUM_RANGE,
-                            OP17_L1_SHARE, OP17_START, PLANT, PRODUCT, SEED, START_DATE,
-                            WO386_DATE, WO388_DATE, WO388_ID)
+                            OP17_L1_SHARE, OP17_START, PAST_INVESTIGATIONS, PLANT,
+                            PRODUCT, SEED, START_DATE, WO386_DATE, WO388_DATE, WO388_ID)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--seed", type=int, default=SEED)
@@ -239,6 +239,21 @@ complaints = pd.DataFrame([
      False, "", None),
 ], columns=["complaint_id", "received", "customer", "product", "lot_id", "defect",
             "text", "eight_d_due", "status", "is_rejection", "objection", "original_eight_d"])
+
+# Five more closed complaints, one per data.constants.PAST_INVESTIGATIONS entry --
+# "Past investigations" (the Complaints sidebar's closed group) needs more than the
+# single C-2026-024 row above to actually read as a populated list. The CAPA and
+# quality-memory record each of these produced are seeded separately, at server
+# startup, by agent/tools/seed_past_investigations.py (not here -- complaints.csv has
+# no notion of a CAPA or a memory entry).
+past_rows = pd.DataFrame([
+    dict(complaint_id=p["complaint_id"], received=p["received"], customer=p["customer"],
+        product=p["product"], lot_id=p["lot_id"], defect=p["defect_type"], text=p["text"],
+        eight_d_due=p["eight_d_due"], status="closed", is_rejection=False, objection="",
+        original_eight_d=None)
+    for p in PAST_INVESTIGATIONS
+])
+complaints = pd.concat([complaints, past_rows], ignore_index=True)
 complaints["original_eight_d"] = complaints["original_eight_d"].apply(
     lambda d: json.dumps(d) if d is not None else "")
 

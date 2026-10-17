@@ -47,6 +47,8 @@ class StateStore(Protocol):
     def events(self, inv_id: str) -> list[Event]: ...
     def create_record(self, kind: str, payload: dict) -> str: ...
     def get_record(self, kind: str, record_id: str) -> dict | None: ...
+    def save_record(self, kind: str, record_id: str, payload: dict) -> None: ...
+    def list_records(self, kind: str) -> list[dict]: ...
     def save_memory(self, entry: MemoryEntry, vector: list[float]) -> None: ...
     def search_memory(self, vector: list[float], defect_type: str,
                       k: int) -> list[tuple[MemoryEntry, float]]: ...
@@ -72,6 +74,18 @@ class MemoryStateStore:
 
     def get_record(self, kind, record_id):
         return self._records.get(kind, {}).get(record_id)
+
+    def save_record(self, kind, record_id, payload):
+        """Write a record under a CALLER-CHOSEN id, bypassing next_id(kind) entirely —
+        for seeding fixed-id historical records (e.g. CAPA-0098, see
+        agent/tools/capa_check.seed_historical_capa) that must never consume, or
+        collide with, the live CAPA-0142... / WO-412... / H-77... counters a real
+        approval advances. create_record (above) stays the only path a live approval
+        ever uses."""
+        self._records.setdefault(kind, {})[record_id] = {"id": record_id, **payload}
+
+    def list_records(self, kind):
+        return list(self._records.get(kind, {}).values())
 
     def save_memory(self, entry, vector): self._memory.append((entry, vector))
 
@@ -118,6 +132,13 @@ class FirestoreStateStore:
     def get_record(self, kind, record_id):
         snap = self._db.collection(self.COLLECTION[kind]).document(record_id).get()
         return snap.to_dict() if snap.exists else None
+
+    def save_record(self, kind, record_id, payload):
+        self._db.collection(self.COLLECTION[kind]).document(record_id).set(
+            {"id": record_id, **payload})
+
+    def list_records(self, kind):
+        return [d.to_dict() for d in self._db.collection(self.COLLECTION[kind]).stream()]
 
     def save_memory(self, entry, vector):
         from google.cloud.firestore_v1.vector import Vector

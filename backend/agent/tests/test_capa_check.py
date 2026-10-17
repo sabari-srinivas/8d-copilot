@@ -7,6 +7,7 @@ p-values and effect signs are known in advance (verified against scipy directly,
 import pandas as pd
 import pytest
 
+from agent.state import MemoryStateStore
 from agent.tools import capa_check
 
 IMPLEMENTED_ON = "2026-07-10"
@@ -129,3 +130,32 @@ def test_the_real_seeded_historical_capa_never_worked():
         HISTORICAL_CAPA_IMPLEMENTED_ON)
     assert result.verdict == "never_worked"
     assert result.n_before == 10 and result.n_immediate == 7 and result.n_recent == 7
+
+
+@pytest.fixture
+def local_state(monkeypatch):
+    store = MemoryStateStore()
+    monkeypatch.setattr(capa_check, "get_state", lambda: store)
+    return store
+
+
+def test_seeding_the_historical_capa_record(local_state):
+    capa_id = capa_check.seed_historical_capa()
+    assert capa_id == "CAPA-0098"
+    record = local_state.get_record("capa", "CAPA-0098")
+    assert record["status"] == "closed"
+    assert record["lot_id"] == "L2389"
+
+
+def test_seeding_the_historical_capa_twice_is_a_no_op(local_state):
+    first = capa_check.seed_historical_capa()
+    second = capa_check.seed_historical_capa()
+    assert first == "CAPA-0098"
+    assert second is None
+    assert len(local_state.list_records("capa")) == 1
+
+
+def test_seeding_the_historical_capa_never_consumes_the_live_counter(local_state):
+    capa_check.seed_historical_capa()
+    live_id = local_state.create_record("capa", {"summary": "live"})
+    assert live_id == "CAPA-0142"

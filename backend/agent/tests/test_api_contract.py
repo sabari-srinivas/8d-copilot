@@ -43,6 +43,20 @@ def test_complaints_carry_the_inbox_fields(client):
     assert golden["is_rejection"] is False
 
 
+def test_six_closed_complaints_populate_past_investigations(client):
+    """The original historical closed complaint (C-2026-024) plus the five seeded by
+    data.constants.PAST_INVESTIGATIONS (see data/generate_plant.py and
+    agent/tools/seed_past_investigations.py) -- the Complaints sidebar's "Past
+    investigations" group."""
+    rows = client.get("/api/complaints").json()
+    closed = [c for c in rows if c["status"] == "closed"]
+    assert len(closed) == 6
+    from data.constants import PAST_INVESTIGATIONS
+    closed_lots = {c["lot_id"] for c in closed}
+    for entry in PAST_INVESTIGATIONS:
+        assert entry["lot_id"] in closed_lots
+
+
 def test_five_open_complaints_two_are_rejections_with_an_original_8d(client):
     """CR #6/#14: the contract's GET /complaints response for a rejection row."""
     rows = client.get("/api/complaints").json()
@@ -164,6 +178,47 @@ def test_sse_stream_is_an_event_stream(client, monkeypatch):
 
 def test_memory_endpoint_returns_a_list(client):
     assert isinstance(client.get("/api/memory").json(), list)
+
+
+def test_dashboard_summary_matches_the_seeded_dataset(client):
+    body = client.get("/api/dashboard/summary").json()
+    assert body["first_pass_yield"]["units"] == 31973
+    assert body["first_pass_yield"]["defects"] == 282
+    assert body["first_pass_yield"]["pct"] == 99.12
+    assert body["open_eight_ds"]["count"] == 5
+    assert body["charts"]["defect_pareto"] == {"solder_bridge": 188, "other": 94}
+    assert body["charts"]["defect_rate_by_line"]["line2_avg_pct"] > \
+        body["charts"]["defect_rate_by_line"]["line1_avg_pct"]
+    assert len(body["charts"]["spc_reflow_peak"]["points"]) == 64
+    assert body["charts"]["spc_reflow_peak"]["limit_c"] == 250.0
+
+
+def test_capas_endpoint_surfaces_the_historical_capa_and_its_verdict(client):
+    # The `client` fixture builds a bare TestClient without entering it as a context
+    # manager, so FastAPI's lifespan (which seeds CAPA-0098 in production/local-dev)
+    # never runs here -- seed directly, the same thing lifespan does on startup,
+    # against the app's real (unmocked) global state.
+    from agent.tools.capa_check import seed_historical_capa
+    from agent.tools.memory import seed_historical_quality_memory
+    seed_historical_capa()
+    seed_historical_quality_memory()
+
+    rows = client.get("/api/capas").json()
+    hist = next(c for c in rows if c["id"] == "CAPA-0098")
+    assert hist["effectiveness"]["verdict"] == "never_worked"
+    assert hist["defect_type"] == "tombstoning"
+
+
+def test_plant_lots_endpoint_returns_all_64_lots(client):
+    rows = client.get("/api/plant/lots").json()
+    assert len(rows) == 64
+    assert "reflow_peak_temp_c" in rows[0]
+
+
+def test_plant_maintenance_endpoint_returns_all_work_orders(client):
+    rows = client.get("/api/plant/maintenance").json()
+    assert len(rows) == 10
+    assert {r["line"] for r in rows} == {"L1", "L2"}
 
 
 def test_demo_code_disabled_when_unset(client):

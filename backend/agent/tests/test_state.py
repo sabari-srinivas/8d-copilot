@@ -33,6 +33,29 @@ def test_records_get_prefixed_sequential_ids(store):
     assert store.get_record("capa", first)["summary"] == "a"
 
 
+def test_save_record_uses_the_given_id_not_the_counter(store):
+    """save_record (unlike create_record) writes under a caller-chosen id and must
+    never advance the live CAPA-0142... counter -- the seeding use case
+    (agent/tools/capa_check.seed_historical_capa)."""
+    store.save_record("capa", "CAPA-0098", {"summary": "historical"})
+    assert store.get_record("capa", "CAPA-0098")["summary"] == "historical"
+    live = store.create_record("capa", {"summary": "live"})
+    assert live == "CAPA-0142"
+
+
+def test_list_records_returns_everything_of_one_kind(store):
+    store.save_record("capa", "CAPA-0098", {"summary": "historical"})
+    store.create_record("capa", {"summary": "live"})
+    store.create_record("hold", {"lots": ["L1"]})
+    ids = {r["id"] for r in store.list_records("capa")}
+    assert ids == {"CAPA-0098", "CAPA-0142"}
+    assert len(store.list_records("hold")) == 1
+
+
+def test_list_records_empty_for_an_unused_kind(store):
+    assert store.list_records("capa") == []
+
+
 def test_id_format_matches_the_demo_script():
     assert next_id("capa", start=142) == "CAPA-0142"
     assert next_id("work_order", start=412) == "WO-412"

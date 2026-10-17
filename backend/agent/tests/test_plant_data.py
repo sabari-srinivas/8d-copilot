@@ -186,6 +186,23 @@ def test_bigquery_store_capa_lots_goes_through_stringify_dates(monkeypatch):
     assert json.dumps(df.to_dict("records"))  # raises TypeError if still a date object
 
 
+def test_list_plant_lots_covers_all_64_lots_with_every_parameter():
+    lots = pd_tools.list_plant_lots()
+    assert len(lots) == 64
+    assert {lot.lot_id for lot in lots} >= {GOLDEN_LOT}
+    golden = next(lot for lot in lots if lot.lot_id == GOLDEN_LOT)
+    assert golden.defects_solder_bridge == 14
+    assert golden.line == "L2"
+
+
+def test_list_maintenance_covers_both_lines():
+    events = pd_tools.list_maintenance()
+    assert len(events) == 10
+    assert {e.line for e in events} == {"L1", "L2"}
+    wo388 = next(e for e in events if e.wo_id == "WO-388")
+    assert wo388.post_check == "profile_verification_pending"
+
+
 def test_reset_caches_clears_both_lru_caches():
     store_before = pd_tools.get_store()
     cached_before = pd_tools._joined_cached()

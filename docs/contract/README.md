@@ -65,6 +65,23 @@ Base: `{API_URL}/api`
 5. `POST /investigations/{id}/approve` body `{ "approver": "Priya R.", "edits": {"D4": "..."}, "rejected_action_ids": ["A3"], "note": "..." }` → `{ "capa_id", "hold_id", "work_order_id", "replies": {"ja", "en"}, "memory_id", "rejected_action_ids" }`. The response echoes back `rejected_action_ids` (same ids the request sent) so a client can tell "excluded at review" apart from "attempted and failed" — `replies` is null in both cases (the customer-reply Gemini call degrades to null on failure rather than raising), and only membership in the echoed `rejected_action_ids` proves which one happened.
 6. `GET /memory` → saved confirmed causes.
 7. `GET /health` → `{ "ok": true, "model": "<GEMINI_MODEL>" }`
+8. `GET /dashboard/summary` → `DashboardSummary` (`agent/tools/dashboard.py`), the dashboard landing page's six tiles. Every number is computed live from the same plant/state data every other endpoint reads — nothing here is a constant, even though this dataset's current figures (99.12% yield, 188 solder-bridge defects, Line 1 0.41%/Line 2 0.76%) are quoted in code comments and tests as a regression check on the planted seed, not a value the backend is allowed to shortcut to.
+   ```json
+   { "first_pass_yield": { "units": 31973, "defects": 282, "pct": 99.12 },
+     "open_eight_ds": { "count": 5, "soonest_due_working_days": 2 },
+     "capas": { "open": 0, "recurrence_rate": 1.0, "n_evaluated": 1 },
+     "lots_on_hold": 0,
+     "charts": {
+       "defect_rate_by_line": { "line1": [{"lot_id": "L2551", "date": "2026-09-14", "rate_pct": 0.0}],
+         "line2": [...], "line1_avg_pct": 0.41, "line2_avg_pct": 0.76,
+         "marker_date": "2026-10-08", "marker_label": "WO-388" },
+       "defect_pareto": { "solder_bridge": 188, "other": 94 },
+       "spc_reflow_peak": { "limit_c": 250.0, "points": [{"lot_id": "L2551", "date": "2026-09-14", "value": 244.8}] } } }
+   ```
+   `capas.recurrence_rate` is `null` until at least one CAPA has a determinate effectiveness verdict (not `insufficient_data`) — `n_evaluated` says how many verdicts it is based on, so a client can show "not enough history yet" rather than a fabricated 0%. `open_eight_ds.soonest_due_working_days` is `null` when there are no open complaints with a due date.
+9. `GET /capas` → `list[CapaRecord]` (`agent/tools/dashboard.list_capas_with_effectiveness`), every CAPA — live-approved (`agent/agents/actions.py`) or the seeded historical ones (`agent/tools/capa_check.seed_historical_capa`, `agent/tools/seed_past_investigations.py`) — each joined to the quality-memory entry it produced (matched on `capa_id`) for `defect_type`/`line`/`memory_id`, and, only when both are known, its `effectiveness` (`CapaEffectiveness`, same shape as the `capa_effectiveness` SSE event above). A CAPA record carries no `defect_type`/`line` of its own — those exist only on the memory entry — so both are `""` and `effectiveness` is `null` for a CAPA with no matching memory entry (e.g. one excluded at review before a cause was confirmed, which cannot happen on the approval path but is handled rather than assumed away).
+10. `GET /plant/lots` → `list[PlantLot]`, all 64 lots joined to their 9 measured process parameters (the Plant tab's receipts) — unlike `get_process_window`'s 30-day window, this is every lot, always. Carries `operator_id`/`shift` (real plant columns) but the UI must never render an aggregate "defects by operator/shift" view from them — operator error is never a root cause in this product (`CLAUDE.md`).
+11. `GET /plant/maintenance` → `list[MaintenanceEvent]`, all 10 work orders across both lines (unlike the investigator's own `get_maintenance_events`, which filters to one line).
 
 Commit `mock_events.json` (23 events for the golden path, including the voice-note `tool_call`/`tool_result` pair — CR #12) and `mock_investigation.json` (carries a sample `voice_note`) so the UI can be built with `VITE_USE_MOCKS=true` (replay one event every 600 ms).
 
