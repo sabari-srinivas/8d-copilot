@@ -1,0 +1,12 @@
+{
+  "language": "en-IN",
+  "language_name": "English",
+  "transcript": "...lot twenty-six, something, bridging on line two again, same as last week.",
+  "translation": "...lot twenty-six, something, bridging on line two again, same as last week.",
+  "lot_or_line": "lot 26xx (unclear)",
+  "observations": [
+    "Bridging on line two again, same as last week."
+  ],
+  "maintenance_mentions": [],
+  "low_confidence_fields": ["lot_or_line"]
+}

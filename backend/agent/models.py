@@ -203,6 +203,37 @@ class TravelerRow(BaseModel):
     low_confidence_fields: list[str] = Field(default_factory=list)
 
 
+class VoiceNote(BaseModel):
+    """Produced by agent/tools/voice_tool.py from an uploaded shift-lead recording
+    (CR #12). Schema is built around what the investigator can use as evidence, not
+    around what is easy to transcribe -- `transcript` alone is a toy; `lot_or_line`,
+    `observations` and `maintenance_mentions` are what a human can actually act on.
+    Gemini handles audio natively (Tamil `ta-IN` and Hindi `hi-IN` alongside English),
+    so a note need not be in English -- `language`/`language_name` report what was
+    heard, and `translation` always carries an English rendering regardless."""
+    language: str = ""            # e.g. "ta-IN", "hi-IN", "en-IN" -- as the model names it
+    language_name: str = ""       # human-readable, e.g. "Tamil"
+    transcript: str = ""          # verbatim, in the language/script actually spoken
+    translation: str = ""         # English. Equal to `transcript` when already English.
+    lot_or_line: str = ""         # whatever lot or line reference was said, as said
+    observations: list[str] = Field(default_factory=list)
+    maintenance_mentions: list[str] = Field(default_factory=list)
+    # Half-heard or inferred fields a human must confirm before relying on them -- same
+    # convention as TravelerRow.low_confidence_fields. A half-heard lot number must be
+    # flagged here, not silently guessed (CR #12).
+    low_confidence_fields: list[str] = Field(default_factory=list)
+
+    @field_validator("language", "language_name", "transcript", "translation",
+                      "lot_or_line", mode="before")
+    @classmethod
+    def _blank_out_nullish_text(cls, v):
+        if v is None:
+            return ""
+        if isinstance(v, str) and v.strip().lower() in _NULLISH_TEXT:
+            return ""
+        return v
+
+
 class Passage(BaseModel):
     source: str
     ref: str
@@ -222,6 +253,10 @@ class Investigation(BaseModel):
     results: list[HypothesisResult] = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
     traveler_rows: list[TravelerRow] = Field(default_factory=list)
+    # CR #12: the shift lead's voice note, if one was uploaded. None when no voice_note
+    # was attached to POST /investigations -- the UI must treat absence as "not
+    # provided", not as an empty/failed extraction.
+    voice_note: VoiceNote | None = None
     hold_lots: list[str] = Field(default_factory=list)
     eight_d: EightD | None = None
     proposed_actions: list[ProposedAction] = Field(default_factory=list)
