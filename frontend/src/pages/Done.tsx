@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { getInvestigation } from "../api/client";
 import type { ApproveResult, Investigation } from "../api/types";
+import { ProvenanceTag } from "../components/ProvenanceTag";
 
 type DoneState = { result: ApproveResult; note: string } | undefined;
 
@@ -129,6 +130,7 @@ export function Done() {
           <Card title="Customer reply">
             {state.result.replies ? (
               <>
+                <ProvenanceTag tone="ai">AI-drafted</ProvenanceTag>
                 <div className="flex gap-1 w-fit rounded-lg border p-1" style={{ borderColor: "var(--line)" }} role="tablist" aria-label="Reply language">
                   {(["ja", "en"] as const).map((l) => (
                     <button

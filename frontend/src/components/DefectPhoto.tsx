@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Defect } from "../api/types";
+import { ProvenanceTag } from "./ProvenanceTag";
 
 function humanize(s: string): string {
   const words = s.replace(/_/g, " ");
@@ -71,6 +72,7 @@ export function DefectPhoto({
             {humanize(defect.type)} · {humanize(defect.severity)} ·{" "}
             {Math.round(defect.confidence * 100)}%
           </span>
+          <ProvenanceTag tone="ai">AI · Gemini vision</ProvenanceTag>
         </figcaption>
       )}
     </figure>

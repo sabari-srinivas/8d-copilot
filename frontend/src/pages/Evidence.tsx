@@ -4,6 +4,7 @@ import { getInvestigationReady, resolveApiUrl } from "../api/client";
 import { useInvestigationStream } from "../api/useInvestigationStream";
 import type { Investigation } from "../api/types";
 import { CitationChip } from "../components/CitationChip";
+import { ProvenanceTag } from "../components/ProvenanceTag";
 import { TempChart } from "../components/TempChart";
 
 function formatPValue(p: number): string {
@@ -43,7 +44,10 @@ export function Evidence() {
       <h1 className="text-lg font-semibold">Evidence</h1>
 
       <section>
-        <h2 className="text-sm font-semibold opacity-80 mb-2">Reflow peak temperature, Line 2</h2>
+        <h2 className="text-sm font-semibold opacity-80 mb-1">Reflow peak temperature, Line 2</h2>
+        <p className="mb-2">
+          <ProvenanceTag tone="computed">Computed from lot data</ProvenanceTag>
+        </p>
         {chartUrl && !chartFailed ? (
           <img
             src={chartUrl}
@@ -58,7 +62,10 @@ export function Evidence() {
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold opacity-80 mb-2">Hypothesis test results</h2>
+        <h2 className="text-sm font-semibold opacity-80 mb-1">Hypothesis test results</h2>
+        <p className="mb-2">
+          <ProvenanceTag tone="computed">Computed from lot data — not AI</ProvenanceTag>
+        </p>
         <div className="overflow-x-auto card">
           <table className="w-full text-sm">
             <thead>
@@ -91,7 +98,10 @@ export function Evidence() {
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold opacity-80 mb-2">Citations</h2>
+        <h2 className="text-sm font-semibold opacity-80 mb-1">Citations</h2>
+        <p className="mb-2">
+          <ProvenanceTag tone="quoted">Quoted from the source documents</ProvenanceTag>
+        </p>
         <div className="flex flex-wrap gap-2">
           {inv.citations.map((c, i) => (
             <CitationChip key={`${c.source}-${c.ref}-${i}`} citation={c} />

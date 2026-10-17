@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { Citation } from "../api/types";
 import { CitationChip } from "./CitationChip";
+import { ProvenanceTag } from "./ProvenanceTag";
 
 function autoGrow(el: HTMLTextAreaElement | null) {
   if (!el) return;
@@ -29,9 +30,12 @@ export function EightDSection({
 
   return (
     <details className="card p-0 overflow-hidden" open={defaultOpen}>
-      <summary className="tap-target flex items-center gap-2 px-4 cursor-pointer list-none font-semibold text-sm">
+      <summary className="tap-target flex items-center gap-2 px-4 cursor-pointer list-none font-semibold text-sm flex-wrap">
         <span className="mono text-xs opacity-60">{id}</span>
         {label}
+        <span className="ml-auto font-normal">
+          <ProvenanceTag tone="ai">AI-drafted · edit before approving</ProvenanceTag>
+        </span>
       </summary>
       <div className="px-4 pb-4 flex flex-col gap-3">
         <label htmlFor={`${id}-text`} className="sr-only">

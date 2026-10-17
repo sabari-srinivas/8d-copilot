@@ -1,4 +1,5 @@
 import type { Hypothesis, HypothesisResult } from "../api/types";
+import { ProvenanceTag } from "./ProvenanceTag";
 import { VerdictPill } from "./VerdictPill";
 
 function formatPValue(p: number): string {
@@ -39,12 +40,19 @@ export function HypothesisCard({
       </div>
 
       <p className="text-sm leading-snug">{hypothesis.text}</p>
+      <ProvenanceTag tone="ai">AI-proposed</ProvenanceTag>
 
       {hypothesis.parameter && (
         <p className="text-xs opacity-60">
           Parameter: <span className="mono">{hypothesis.parameter}</span>
           {hypothesis.event_wo_id ? <> · Event: <span className="mono">{hypothesis.event_wo_id}</span></> : null}
         </p>
+      )}
+
+      {result && (
+        <ProvenanceTag tone="computed">
+          Computed from lot data · {result.test}, {formatPValue(result.p_value)}
+        </ProvenanceTag>
       )}
 
       {result && (

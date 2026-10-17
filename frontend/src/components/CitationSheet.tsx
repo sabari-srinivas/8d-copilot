@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
+import { prettySource } from "../api/capability";
 import type { Citation } from "../api/types";
+import { ProvenanceTag } from "./ProvenanceTag";
 
 /** The quote behind a citation chip, with its source and reference. A simple,
  * accessible dialog: focus moves in on open, Escape and backdrop click close it. */
@@ -48,7 +50,10 @@ export function CitationSheet({
             ✕
           </button>
         </div>
-        <blockquote className="mt-3 text-sm leading-relaxed border-l-2 pl-3" style={{ borderColor: "var(--green)" }}>
+        <p className="mt-3">
+          <ProvenanceTag tone="quoted">Quoted from {prettySource(citation.source)}</ProvenanceTag>
+        </p>
+        <blockquote className="mt-1 text-sm leading-relaxed border-l-2 pl-3" style={{ borderColor: "var(--green)" }}>
           {citation.quote || "No quoted passage recorded for this citation."}
         </blockquote>
         <p className="mt-3 text-xs opacity-60 mono">
