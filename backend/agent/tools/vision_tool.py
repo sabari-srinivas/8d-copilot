@@ -16,6 +16,13 @@ log = logging.getLogger(__name__)
 # reduces latency without blurring the defect box past usefulness.
 MAX_LONG_EDGE_PX = 1024
 
+# Task 15c measurement: 3 runs each of defect_03.jpg and no_defect_01.jpg at temperature
+# 0.0 came back fully consistent (3/3 solder_bridge, 3/3 none), an improvement over the
+# "majority-stable" (2/3) reads documented at 0.1 in test_vision_tool.py. This is a pure
+# classification task with a schema-constrained output, so there is no case for sampling
+# diversity -- lower temperature should only help, and measurement confirmed it did.
+VISION_TEMPERATURE = 0.0
+
 
 def _shrink_to_long_edge(image_bytes: bytes, mime_type: str,
                          max_edge: int = MAX_LONG_EDGE_PX) -> tuple[bytes, str]:
@@ -45,4 +52,5 @@ def analyze_defect_image(image_bytes: bytes, mime_type: str = "image/jpeg") -> D
     image_bytes, mime_type = _shrink_to_long_edge(image_bytes, mime_type)
     log.info("analysing defect image (%d bytes, %s)", len(image_bytes), mime_type)
     part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
-    return generate_structured(load_prompt("vision"), Defect, parts=[part], temperature=0.1)
+    return generate_structured(load_prompt("vision"), Defect, parts=[part],
+                               temperature=VISION_TEMPERATURE)
