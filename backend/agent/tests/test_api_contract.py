@@ -121,3 +121,56 @@ def test_sse_stream_is_an_event_stream(client, monkeypatch):
 
 def test_memory_endpoint_returns_a_list(client):
     assert isinstance(client.get("/api/memory").json(), list)
+
+
+def test_demo_code_disabled_when_unset(client):
+    """The fixture's TestClient already runs with DEMO_ACCESS_CODE unset (the repo's
+    .env.example / local .env default) — every route must work with no header at
+    all, exactly like local dev and the rest of this test module."""
+    assert client.get("/api/health").status_code == 200
+    assert client.get("/api/complaints").status_code == 200
+    assert client.get("/api/memory").status_code == 200
+
+
+def test_demo_code_enforced_when_set(monkeypatch):
+    from agent import main
+    from agent.config import Settings
+    from agent.events import bus
+
+    async def fake_run_investigation(inv_id):
+        await bus.publish(inv_id, "system", "done", "Investigation complete")
+        bus.close(inv_id)
+
+    monkeypatch.setattr(main, "run_investigation", fake_run_investigation)
+    monkeypatch.setattr(main, "get_settings", lambda: Settings(demo_access_code="let-me-in"))
+    client = TestClient(main.app)
+
+    # /api/health never requires the code, even when one is configured.
+    assert client.get("/api/health").status_code == 200
+
+    # Every other /api/* route rejects a missing or wrong header...
+    assert client.get("/api/complaints").status_code == 401
+    assert client.get("/api/complaints", headers={"X-Demo-Code": "wrong"}).status_code == 401
+    assert client.get("/api/memory", headers={"X-Demo-Code": "wrong"}).status_code == 401
+
+    # ...and accepts the header when it matches.
+    ok = client.get("/api/complaints", headers={"X-Demo-Code": "let-me-in"})
+    assert ok.status_code == 200
+    assert isinstance(ok.json(), list)
+
+    # EventSource/<img> can't set headers — the SSE stream and file routes also
+    # accept the code as a query parameter.
+    resp = client.post("/api/investigations",
+                       files={"image": ("tiny.jpg", (FX / "tiny.jpg").read_bytes(), "image/jpeg")},
+                       data={"complaint_id": "C-2026-031", "lot_id": "L2611",
+                             "complaint_text": "x"},
+                       headers={"X-Demo-Code": "let-me-in"})
+    assert resp.status_code == 200
+    inv_id = resp.json()["id"]
+
+    no_code = client.get(f"/api/investigations/{inv_id}/events")
+    assert no_code.status_code == 401
+
+    with client.stream("GET", f"/api/investigations/{inv_id}/events?code=let-me-in") as stream:
+        assert stream.status_code == 200
+        assert stream.headers["content-type"].startswith("text/event-stream")

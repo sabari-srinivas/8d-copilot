@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 // fixture, validated against the real Pydantic models by a backend test — never edit it.
 import mockEventsJson from "@contract/mock_events.json";
 import { USE_MOCKS } from "./client";
+import { getDemoCode } from "./demoCode";
 import type { AgentEvent, Citation, Defect, Hypothesis, HypothesisResult, MemoryEntry, Status } from "./types";
 
 const MOCK_EVENTS = mockEventsJson as AgentEvent[];
@@ -113,7 +114,11 @@ export function useInvestigationStream(id: string | undefined): InvestigationStr
     }
 
     const base = import.meta.env.VITE_API_URL ?? "";
-    const source = new EventSource(`${base}/api/investigations/${id}/events`);
+    // EventSource can't set custom headers, so the demo code (when one is
+    // configured) travels as a query param here — see main.py's require_demo_code.
+    const code = getDemoCode();
+    const url = `${base}/api/investigations/${id}/events${code ? `?code=${encodeURIComponent(code)}` : ""}`;
+    const source = new EventSource(url);
     source.onopen = () => setReconnecting(false);
     source.onmessage = (m) => {
       const event = JSON.parse(m.data) as AgentEvent;

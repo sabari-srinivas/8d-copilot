@@ -1,3 +1,4 @@
+import { getDemoCode } from "./demoCode";
 import { mockApproval, mockComplaints, mockInvestigation, mockMemory } from "./mocks";
 import type {
   ApproveBody,
@@ -13,7 +14,10 @@ const BASE = import.meta.env.VITE_API_URL ?? "";
 export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}/api${path}`, init);
+  const headers = new Headers(init?.headers);
+  const code = getDemoCode();
+  if (code) headers.set("X-Demo-Code", code);
+  const res = await fetch(`${BASE}/api${path}`, { ...init, headers });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} on ${path}`);
   return res.json() as Promise<T>;
 }
@@ -29,7 +33,13 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
 export function resolveApiUrl(path: string | null | undefined): string | null {
   if (!path) return null;
   if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return path; // absolute: http(s), data, blob...
-  return `${BASE}${path}`;
+  const url = `${BASE}${path}`;
+  // <img src> can't set the X-Demo-Code header fetch() uses, so the file-serving
+  // route (/api/files/...) also accepts it as a query param — see main.py's
+  // require_demo_code middleware.
+  const code = getDemoCode();
+  if (!code) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}code=${encodeURIComponent(code)}`;
 }
 
 export const listComplaints = (): Promise<Complaint[]> =>

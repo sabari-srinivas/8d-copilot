@@ -1,0 +1,16 @@
+# Keep the image small and free of local hand-verification artefacts.
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+agent/tests/
+infra/
+
+# data/out/ is scratch output from local runs (photos, charts, run_cases.json, the
+# CSV/Excel plant data used only by PLANT_BACKEND=csv) — none of it belongs in a
+# Cloud Run image that talks to BigQuery/Firestore/GCS. EXCEPT data/out/replay/: the
+# recorded golden-path run that REPLAY_CASE=golden serves when Vertex quota refuses a
+# live call. Same pattern as the repo's own .gitignore for the same reason.
+data/out/*
+!data/out/replay/
+!data/out/replay/*.json

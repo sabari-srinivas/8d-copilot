@@ -3,9 +3,9 @@ import asyncio
 import json
 import logging
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from agent.config import get_settings
@@ -23,6 +23,31 @@ log = logging.getLogger(__name__)
 app = FastAPI(title="8D Copilot API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
+
+
+@app.middleware("http")
+async def require_demo_code(request: Request, call_next):
+    """Gate every /api/* route except /api/health behind DEMO_ACCESS_CODE — the
+    deployed demo runs with --allow-unauthenticated, so this is the only thing
+    standing between the Cloud Run URL and a stranger. /api/health stays open so a
+    judge (or an uptime check) can see the service is alive without the code.
+
+    Disabled entirely when DEMO_ACCESS_CODE is unset (the default) — local dev and
+    the whole test suite never set it, so this must be a no-op for them.
+
+    Browsers' native EventSource (the SSE stream) and <img>/<source> tags (the
+    defect photo, the reflow chart) cannot set custom request headers, so those two
+    GET-only surfaces also accept the code as a `code` query parameter. Every other
+    call goes through fetch() and sends the X-Demo-Code header — see
+    frontend/src/api/client.ts and frontend/src/api/demoCode.ts.
+    """
+    code = get_settings().demo_access_code
+    path = request.url.path
+    if code and path.startswith("/api/") and path != "/api/health":
+        supplied = request.headers.get("x-demo-code") or request.query_params.get("code")
+        if supplied != code:
+            return JSONResponse({"detail": "missing or invalid X-Demo-Code"}, status_code=401)
+    return await call_next(request)
 
 # asyncio.create_task only keeps a WEAK reference to the task via the event loop; nothing
 # else in this module holds the returned Task object, so without a strong reference
