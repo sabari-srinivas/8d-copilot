@@ -7,10 +7,43 @@ import mockInvestigationJson from "@contract/mock_investigation.json";
 import type {
   ApproveResult,
   Complaint,
+  EightD,
   Investigation,
   MemoryEntry,
 } from "./types";
 
+function blankSection(text: string) {
+  return { text, citations: [] };
+}
+
+const REJECTED_8D_OPERATOR_ERROR: EightD = {
+  D1: blankSection("Team: SMT process engineer (lead), quality engineer, production shift supervisor."),
+  D2: blankSection("Problem description: Hoshino Denso (fictional) reported solder bridging on ECU-PCB-7, lot L2612, found at incoming inspection."),
+  D3: blankSection("Containment: lot L2612 and the two adjacent lots were pulled and 100% re-inspected under magnification; bridged boards were reworked."),
+  D4: blankSection("Root cause: operator error. Operator OP-17, who began running Line 2 shortly before the affected lots, did not consistently follow the stencil wipe procedure, resulting in excess solder deposit and bridging at fine-pitch pads."),
+  D5: blankSection("Permanent corrective action: OP-17 was retrained on the stencil wipe procedure and re-certified."),
+  D6: blankSection("Verification of effectiveness: no further bridging was observed on OP-17's lots in the week following retraining."),
+  D7: blankSection("Prevent recurrence: training records updated to reflect re-certification."),
+  D8: blankSection("Closure: corrective action verified and closed; 8D sent to Hoshino Denso (fictional)."),
+};
+
+const REJECTED_8D_MISSING_DETECTION: EightD = {
+  D1: blankSection("Team: SMT process engineer (lead), quality engineer, reflow equipment technician."),
+  D2: blankSection("Problem description: Meridian Auto Electronics (fictional) reported solder bridging on ECU-PCB-7, lot L2610, found at incoming inspection."),
+  D3: blankSection("Containment: lot L2610 and lots produced in the same window on Line 2 were pulled and 100% re-inspected; bridged boards were reworked."),
+  D4: {
+    text: "Root cause: following work order WO-388 (Line 2 reflow oven zone 7 heater replacement and profile re-tune), reflow peak temperature drifted above the process limit across the lots produced afterward, causing excess solder flow and bridging between adjacent fine-pitch pads [PFMEA row 14].",
+    citations: [{ label: "PFMEA row 14", source: "pfmea.md", ref: "Row 14", quote: "Cause: Reflow peak temperature above profile limit." }],
+  },
+  D5: blankSection("Permanent corrective action: re-qualify the Line 2 reflow profile and hold lots produced since the last verified profile."),
+  D6: blankSection("Verification of effectiveness: profile re-qualification to be confirmed against the 235-250 °C specification before the hold is released."),
+  D7: blankSection("Prevent recurrence: PFMEA row 14 and control plan item 6 to be reviewed."),
+  D8: blankSection("Closure: corrective action pending verification; 8D sent to Meridian Auto Electronics (fictional)."),
+};
+
+// Field-for-field with backend/data/generate_plant.py's seed complaints (five open, two
+// of them rejections — CR #6/#14) so the mock inbox (VITE_USE_MOCKS=true) demos the same
+// story as the live backend.
 const MOCK_COMPLAINTS: Complaint[] = [
   {
     complaint_id: "C-2026-031",
@@ -24,7 +57,27 @@ const MOCK_COMPLAINTS: Complaint[] = [
     eight_d_due: "2026-10-29",
     status: "open",
     text: "Solder bridging found on ECU-PCB-7, lot 2611, 14 of 500 units at our incoming/ICT. Please contain immediately and send 8D within 10 working days.",
-    due_in_working_days: 3,
+    due_in_working_days: 8,
+    is_rejection: false,
+    objection: "",
+    original_eight_d: null,
+  },
+  {
+    complaint_id: "C-2026-033",
+    customer: "Hoshino Denso (fictional)",
+    product: "ECU-PCB-7",
+    lot_id: "L2612",
+    defect: "solder_bridge",
+    qty_affected: 7,
+    qty_shipped: 515,
+    received: "2026-10-16",
+    eight_d_due: "2026-10-20",
+    status: "open",
+    text: "We are returning the 8D for lot L2612 (7 of 515 units, solder bridging at incoming inspection) unapproved: root cause stated as operator error; not acceptable. Please re-investigate with objective evidence and resubmit within 3 working days.",
+    due_in_working_days: 2,
+    is_rejection: true,
+    objection: "root cause stated as operator error; not acceptable",
+    original_eight_d: REJECTED_8D_OPERATOR_ERROR,
   },
   {
     complaint_id: "C-2026-032",
@@ -38,7 +91,44 @@ const MOCK_COMPLAINTS: Complaint[] = [
     eight_d_due: "2026-10-28",
     status: "open",
     text: "3 boards with tombstoned 0402 capacitors at C112, lot 9142. Request 8D.",
-    due_in_working_days: 8,
+    due_in_working_days: 7,
+    is_rejection: false,
+    objection: "",
+    original_eight_d: null,
+  },
+  {
+    complaint_id: "C-2026-034",
+    customer: "Meridian Auto Electronics (fictional)",
+    product: "ECU-PCB-7",
+    lot_id: "L2610",
+    defect: "solder_bridge",
+    qty_affected: 13,
+    qty_shipped: 511,
+    received: "2026-10-15",
+    eight_d_due: "2026-10-30",
+    status: "open",
+    text: "We are returning the 8D for lot L2610 (13 of 511 units, solder bridging at incoming inspection) unapproved: D4 does not explain why the condition escaped detection. Please revise and resubmit.",
+    due_in_working_days: 9,
+    is_rejection: true,
+    objection: "D4 does not explain why the condition escaped detection",
+    original_eight_d: REJECTED_8D_MISSING_DETECTION,
+  },
+  {
+    complaint_id: "C-2026-035",
+    customer: "Vindhya Auto Systems (fictional)",
+    product: "ECU-PCB-7",
+    lot_id: "L2590",
+    defect: "missing_component",
+    qty_affected: 1,
+    qty_shipped: null,
+    received: "2026-10-13",
+    eight_d_due: "2026-11-06",
+    status: "open",
+    text: "One missing 0402 resistor at position R18 found on ECU-PCB-7, lot 2590, during customer incoming inspection. Please investigate and provide 8D.",
+    due_in_working_days: 14,
+    is_rejection: false,
+    objection: "",
+    original_eight_d: null,
   },
   {
     complaint_id: "C-2026-024",
@@ -53,6 +143,9 @@ const MOCK_COMPLAINTS: Complaint[] = [
     status: "closed",
     text: "Tombstoning on 0402 resistors, lot 2389.",
     due_in_working_days: null,
+    is_rejection: false,
+    objection: "",
+    original_eight_d: null,
   },
 ];
 

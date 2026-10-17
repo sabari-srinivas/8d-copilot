@@ -21,7 +21,14 @@ export type SixM = "Machine" | "Method" | "Material" | "Man" | "Measurement" | "
 export type Status = "running" | "draft_ready" | "approved" | "insufficient_evidence" | "failed";
 
 export type ActionKind = "capa" | "hold" | "work_order" | "customer_reply";
-export type AgentName = "intake" | "vision" | "investigator" | "evidence" | "writer" | "system";
+export type AgentName =
+  | "intake"
+  | "vision"
+  | "investigator"
+  | "evidence"
+  | "writer"
+  | "reviser"
+  | "system";
 export type EventType =
   | "step_started"
   | "tool_call"
@@ -47,6 +54,17 @@ export interface Complaint {
   status: "open" | "closed";
   text: string;
   due_in_working_days: number | null;
+  /** True when this complaint is the customer's rejection of an 8D already submitted,
+   * not a new defect report (CR #14) — the inbox and the "new investigation" screen
+   * both branch on this, and the backend routes the investigation through the revise
+   * path (agent "reviser") rather than drafting fresh. */
+  is_rejection: boolean;
+  /** The customer's stated reason for rejecting, e.g. "root cause stated as operator
+   * error; not acceptable". Empty for an ordinary complaint. */
+  objection: string;
+  /** The full D1-D8 text of the 8D being rejected, in the same shape as `EightD`.
+   * `null` for an ordinary complaint. */
+  original_eight_d: EightD | null;
 }
 
 export interface Defect {
