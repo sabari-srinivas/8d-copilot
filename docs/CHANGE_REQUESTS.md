@@ -414,9 +414,19 @@ investigations of the same complaint** — `inv_8de98e06` (18 Oct) and `inv_6688
 correctly created its own CAPA and its own memory entry (`MEM-0001`, `MEM-0002`). The
 code did exactly what it should; the records are accumulated test state in Firestore.
 
-**It should still be cleaned up before judging.** Two identical open CAPAs read as a
-duplicate-detection failure, which is the worst possible misread for a product whose
-pitch is that quality memory stops recurrence.
+**Resolved by explaining it in the UI rather than deleting the records.** Each affected
+card now carries a note: *"Investigation 2 of 2 on complaint C-2026-033. Not a duplicate:
+the same complaint was investigated more than once and each approval opens its own CAPA.
+This one came from inv_8de98e06 on 2026-10-18. The other is CAPA-0143 (2026-10-17)."*
+
+Explaining beats hiding here. Two identical open CAPAs read as a duplicate-detection
+failure — the worst possible misread for a product whose pitch is that quality memory
+stops recurrence — and a judge who asks about them now gets the answer on screen.
+
+The note is **computed from the records**, not hard-coded to this pair: it groups by
+`complaint_id`, numbers each card by date, links to its siblings, and disappears on its
+own once there is one CAPA per complaint. `siblingsOnSameComplaint` is exported and
+tested separately, because the grouping — not the wording — is what has to stay true.
 
 **The real gap it exposes, worth naming rather than fixing today:** nothing stops the
 same complaint being investigated twice and opening a second CAPA for it. A product
