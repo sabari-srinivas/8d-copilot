@@ -96,7 +96,7 @@ def _call_with_retry(fn, /, *args, **kwargs):
             if attempt == RETRY_ATTEMPTS:
                 break
             delay = _retry_delay(attempt)
-            # Log the error, never the payload (CLAUDE.md rule 6).
+            # Log the error, never the payload (ENGINEERING_RULES.md rule 6).
             log.warning(
                 "transient API error, status %s (attempt %d/%d), retrying in %.2fs: %s",
                 code, attempt, RETRY_ATTEMPTS, delay, exc.__class__.__name__)

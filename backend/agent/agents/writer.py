@@ -75,7 +75,7 @@ async def run(inv_id: str, inv: Investigation,
     drafted = await asyncio.to_thread(generate_structured, prompt, WriterOutput,
                                       temperature=0.3)
 
-    # Deterministic Python decides the status, not the model (CLAUDE.md rule 1). With no
+    # Deterministic Python decides the status, not the model (ENGINEERING_RULES.md rule 1). With no
     # supported hypothesis there is no verified root cause, so there is no 8D to sign; and
     # a model that fills in all eight D sections but labels them "Draft Ready", "draft" or
     # "insufficient_evidence" must not be able to mislabel a perfectly good draft. Observed

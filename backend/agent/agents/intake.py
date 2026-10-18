@@ -61,7 +61,7 @@ async def run(inv_id: str, complaint_text: str, complaint_id: str = "",
         await bus.publish(
             inv_id, "intake", "tool_call",
             "Listening to the shift lead's voice note (Gemini audio)",
-            # The size, never the bytes: no upload content in an event (CLAUDE.md rule 6).
+            # The size, never the bytes: no upload content in an event (ENGINEERING_RULES.md rule 6).
             data={"tool": "analyze_voice_note", "args": {"size_bytes": len(voice_bytes)}})
         voice_note = await asyncio.to_thread(analyze_voice_note, voice_bytes, voice_mime)
         language = voice_note.language_name or "language not identified"

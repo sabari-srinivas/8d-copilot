@@ -182,7 +182,7 @@ stats_test.py` runs a Welch t-test (numeric parameters) or a Fisher exact test
 (categorical parameters, e.g. operator) and a direction-aware classifier
 (`stats_verdict.classify`) turns the p-value and effect size into `supported` /
 `rejected` / `inconclusive`; the model only proposes which parameter to test and reads
-the verdict back. `CLAUDE.md`'s golden rule states this as a hard rule: the LLM never
+the verdict back. `ENGINEERING_RULES.md`'s golden rule states this as a hard rule: the LLM never
 writes a p-value, a measurement or a verdict, and `agent/tools/stats_test.py` is the
 only module allowed to produce one. A second pass, `agent/tools/provenance.py`,
 checks every number in the drafted 8D against the set of numbers that actually appeared

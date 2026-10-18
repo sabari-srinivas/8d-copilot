@@ -5,7 +5,7 @@ import { getDemoCode, setDemoCode } from "../api/demoCode";
 /** Blocks the app behind the demo access code until a correct one is entered, then
  * remembers it in sessionStorage for the rest of the tab's life (see demoCode.ts).
  * No-ops in mock mode (USE_MOCKS=true) — there is no real backend to check against,
- * and local development must stay unaffected per CLAUDE.md / the deploy plan.
+ * and local development must stay unaffected per ENGINEERING_RULES.md / the deploy plan.
  *
  * Verifies the code by calling a real gated endpoint (GET /api/complaints) rather
  * than trusting the input blindly: DEMO_ACCESS_CODE may be unset on the server (the

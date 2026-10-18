@@ -159,7 +159,7 @@ async def transcribe_voice_note(audio: UploadFile = File(...)):
     start, which is one extra model call. That is on purpose: the alternative is the
     client posting this result back and the backend trusting it, which would put
     model-extracted content into an investigation without it having come from a tool call
-    on this side of the wire. One repeated call is the cheaper price (CLAUDE.md rule 4).
+    on this side of the wire. One repeated call is the cheaper price (ENGINEERING_RULES.md rule 4).
     """
     try:
         note = await asyncio.to_thread(

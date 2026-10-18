@@ -101,7 +101,7 @@ every screen. The honesty claim lives in three places that remain: the plant nam
 it plainly, and the deck's data slide says it out loud.
 
 `AppShell.test.tsx` asserts no demo-data wording survives anywhere in the shell, so the
-chip cannot creep back in. CLAUDE.md rule 5 was updated to match — it previously required
+chip cannot creep back in. ENGINEERING_RULES.md rule 5 was updated to match — it previously required
 a UI label and would otherwise have read as a standing instruction to restore it.
 
 ---
@@ -249,7 +249,7 @@ warning naming any field it is not sure it heard.
 New endpoint `POST /api/voice/transcribe`, a deliberate dead end: it starts no
 investigation and writes no state. The recorded blob is still posted with the
 investigation, which **re-reads the audio server-side** rather than trusting a
-client-supplied extraction — one extra model call, bought on purpose (CLAUDE.md rule 4).
+client-supplied extraction — one extra model call, bought on purpose (ENGINEERING_RULES.md rule 4).
 
 **Two things found by testing rather than assuming:**
 

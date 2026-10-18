@@ -2,7 +2,7 @@
 Hermetic: no plant CSVs, no LLM calls. Every scenario monkeypatches
 get_capa_defect_series with a constructed DataFrame (lot_id, date, rate), so the exact
 p-values and effect signs are known in advance (verified against scipy directly, see
-.superpowers/sdd/2026-10-16-8d-copilot-prototype/capa-effectiveness-report.md).
+the build report.
 """
 import pandas as pd
 import pytest

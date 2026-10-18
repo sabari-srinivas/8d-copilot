@@ -22,7 +22,7 @@ def test_missing_prompt_raises_with_the_name():
 
 
 def test_no_model_id_is_hard_coded_anywhere_in_the_package():
-    """CLAUDE.md rule 3: model names come only from env, in code, tests, comments or docs.
+    """ENGINEERING_RULES.md rule 3: model names come only from env, in code, tests, comments or docs.
 
     Scans every .py, .md and .json file under backend/ (not just agent/, and NOT
     skipping tests), excluding only .venv. .json was added after a real miss: the

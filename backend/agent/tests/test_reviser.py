@@ -108,7 +108,7 @@ async def test_no_supported_hypothesis_does_not_revise_toward_a_cause(monkeypatc
 
 @pytest.mark.asyncio
 async def test_an_invented_number_in_the_revision_is_flagged(monkeypatch, wired_bus):
-    """The number-provenance check (CLAUDE.md rule 4) still runs on a revision."""
+    """The number-provenance check (ENGINEERING_RULES.md rule 4) still runs on a revision."""
     blank = _revised_section("x")
     bad = _revised_section("Peak temperature rose by 99.9 °C [PFMEA row 14].")
     monkeypatch.setattr(reviser, "generate_structured", lambda *a, **k: reviser.WriterOutput(

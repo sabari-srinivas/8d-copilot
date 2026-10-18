@@ -3,10 +3,10 @@
 **Event:** Google Cloud AI Builder Cup 2026 · Manufacturing theme · JAPAC (run by Hack2skill)
 **Team:** Sabari Srinivas (development) · Susan Subramani (UI) · Vishwaa (deployment)
 **Version:** 1.0 · 16 Oct 2026
-**Build tool:** Claude Code (codebase), Google AI Studio (prompt testing), Google Stitch (screen designs, optional)
+**Build tools:** Google AI Studio (prompt testing), Google Stitch (screen designs, optional)
 **Today's goal:** a working prototype running locally against real Google Cloud services. Deployment (Cloud Run + Firebase Hosting) follows on Sat/Sun.
 
-> **For Claude Code:** read this whole file before writing code. Build in the phase order in section 15. Anything marked **MUST** is an acceptance criterion. When a Google SDK or API has changed since this was written, check the current docs and follow them, but keep the behaviour described here.
+> **For implementers:** read this whole file before writing code. Build in the phase order in section 15. Anything marked **MUST** is an acceptance criterion. When a Google SDK or API has changed since this was written, check the current docs and follow them, but keep the behaviour described here.
 
 ---
 
@@ -41,7 +41,7 @@ We are building this prototype as our entry for the **Google Cloud AI Builder Cu
 - **We can make credible data.** Public PCB defect images (VisA) and well-documented solder-process parameters let us build a realistic synthetic plant.
 
 ### 2.4 How we chose the challenge
-We ran three deep-research reports (Gemini, ChatGPT, Claude), then scored seven candidate problems on the official judging weights (`Stage2_Judge_Panel_Scoring.md`, `AI_Builder_Cup_Challenge_Cards.pdf`):
+We ran three independent deep-research reports, then scored seven candidate problems on the official judging weights (`Stage2_Judge_Panel_Scoring.md`, `AI_Builder_Cup_Challenge_Cards.pdf`):
 
 | Rank | Challenge | Theme area | Score /100 |
 |---|---|---|---|
@@ -303,9 +303,9 @@ Vertex AI RAG Engine (PFMEA, control plan, past 8Ds → cited passages)
   infra/            load_data.sh, build_rag.py, Dockerfile, run_cases.py
   web/              React app (src/, design/)
   docs/contract/    README.md (API), mock_events.json, mock_investigation.json
-  README.md  .env.example  CLAUDE.md
+  README.md  .env.example  ENGINEERING_RULES.md
 ```
-Add a `CLAUDE.md` with the golden rule, the contract rule, and "model name only from env".
+Add a `ENGINEERING_RULES.md` with the golden rule, the contract rule, and "model name only from env".
 
 ---
 
@@ -355,11 +355,11 @@ Commit `mock_events.json` (15–18 events for the golden path) and `mock_investi
 
 ---
 
-## 15. Build phases for Claude Code (today)
+## 15. Build phases (today)
 
 | Phase | Deliverable | Done when |
 |---|---|---|
-| 0. Setup | Repo skeleton, `CLAUDE.md`, `.env.example`, contract + mock JSON, Pydantic models | Contract and mocks committed |
+| 0. Setup | Repo skeleton, `ENGINEERING_RULES.md`, `.env.example`, contract + mock JSON, Pydantic models | Contract and mocks committed |
 | 1. Data | `generate_plant.py`, `check_plant.py`, messy Excel, 4 quality docs, demo images | `check_plant.py` asserts all required verdicts |
 | 2. Cloud load | `infra/load_data.sh` (BigQuery + GCS), `infra/build_rag.py` (RAG corpus, prints name + test query) | Test query returns PFMEA row 14 with source |
 | 3. Tools | vision, plant_data, stats_test, rag search, memory, unit tests (CSV-based, no cloud) | Tests pass |

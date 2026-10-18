@@ -26,7 +26,7 @@ NO_DEFECT_VISIBLE = ("No defect is visible in the photo. Upload a clearer image 
                      "reported area, or escalate to a physical inspection of the "
                      "returned units.")
 
-# CLAUDE.md rule 6: no secrets, no image bytes, in logs or events. An SDK exception's
+# ENGINEERING_RULES.md rule 6: no secrets, no image bytes, in logs or events. An SDK exception's
 # str() can embed the request it was sent -- for the vision call, that payload includes
 # the image bytes -- so the message that reaches the stored investigation and the
 # `error` event is capped to a small prefix rather than passed through verbatim. This
@@ -50,7 +50,7 @@ async def start(*, complaint_id: str, lot_id: str, image_bytes: bytes, mime_type
     # The uploaded photo itself (as opposed to the vision agent's reading of it) has to
     # be saved through the same files backend as the stats charts (agent/tools/storage.py)
     # so the UI has a URL to show it from — PRD 143: "Shown on the photo as soon as it
-    # returns." `_uploads` above is in-memory, kept only for the run's lifetime (CLAUDE.md
+    # returns." `_uploads` above is in-memory, kept only for the run's lifetime (ENGINEERING_RULES.md
     # rule 6 is about not putting image bytes in logs/events, not about never persisting
     # the photo a human reviewer needs to see), so without this the UI would never have
     # anything to point an <img> at. This entry is popped by run_investigation's own

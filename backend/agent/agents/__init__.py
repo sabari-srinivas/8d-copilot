@@ -39,7 +39,7 @@ inspection" (file by file, reasoning about which calls looked risky) rather than
 systematically. The second pass greps every call into `agent/state.py`'s `StateStore`
 methods and every `agent/tools/*` function from inside an `async def` across `agent/`,
 with no exceptions — the exhaustive table is in the task 14 fix report
-(`.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-14-report.md`). The full,
+the build report. The full,
 current list:
 
 - `get_lot_genealogy`, `get_process_window` and `get_maintenance_events`
@@ -87,7 +87,7 @@ current list:
   embeds the query — `DOCS_BACKEND=vertex` needed no new threading.
 
 Measured before/after latency for each flip is in the task 14 report
-(`.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-14-report.md`). If a future
+the build report. If a future
 change adds a new call to a `*_BACKEND`-selected tool from async agent code, thread it
 the same way — do not assume a CSV/local/in-memory backend's speed generalizes to its
 cloud counterpart, and do not audit by inspection: grep for every call into

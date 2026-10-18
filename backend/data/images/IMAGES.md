@@ -41,7 +41,7 @@ leaning on either in a live demo.
 
 Full test methodology, every call's raw output, and the two prompt revisions that got
 here are recorded in
-`.superpowers/sdd/2026-10-16-8d-copilot-prototype/task-5-report.md`.
+the build report.
 
 ## Open items for the team
 

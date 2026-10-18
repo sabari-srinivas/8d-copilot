@@ -8,7 +8,7 @@
  * The owner asked for the words out of the chrome, so this strips them at the point of
  * render and nowhere else. The data is untouched, which matters — the 8D a judge reads
  * still quotes the customer exactly as the record spells it, so nothing downstream of a
- * tool result is being quietly rewritten to look better. See CLAUDE.md rule 5 and
+ * tool result is being quietly rewritten to look better. See ENGINEERING_RULES.md rule 5 and
  * docs/CHANGE_REQUESTS.md #17.
  */
 

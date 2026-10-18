@@ -14,7 +14,7 @@ evidence/writer do today.
 What stays shared with writer.py, deliberately: the WriterOutput schema, the
 deterministic status rule (supported hypothesis + a returned eight_d is the only way to
 land on draft_ready — never the model's own status string), and the number-provenance
-check (agent/tools/provenance.py). A revision is still an 8D: CLAUDE.md rule 1 (the LLM
+check (agent/tools/provenance.py). A revision is still an 8D: ENGINEERING_RULES.md rule 1 (the LLM
 proposes, Python decides the verdict) and rule 4 (no number outside a tool result) do
 not get an exception just because the starting point was an edit instead of a blank
 page. The one thing this module does NOT reuse: agent/prompts/writer.md. The prompt is
@@ -84,7 +84,7 @@ async def run(inv_id: str, inv: Investigation, complaint: Complaint) -> WriterOu
     drafted = await asyncio.to_thread(generate_structured, prompt, WriterOutput,
                                       temperature=0.3)
 
-    # Deterministic Python decides the status, not the model (CLAUDE.md rule 1) —
+    # Deterministic Python decides the status, not the model (ENGINEERING_RULES.md rule 1) —
     # identical rule to writer.run, for the identical reason: a revision is still an
     # 8D, and there is still no verdict to sign without a supported hypothesis.
     if supported and drafted.eight_d is not None:

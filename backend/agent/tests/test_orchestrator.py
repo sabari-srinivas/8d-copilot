@@ -297,7 +297,7 @@ async def test_a_crashed_investigation_is_stored_as_failed(wired, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_a_failure_message_is_length_bounded(wired, monkeypatch):
-    """CLAUDE.md rule 6 (no secrets, no image bytes, in logs or events) holds on the
+    """ENGINEERING_RULES.md rule 6 (no secrets, no image bytes, in logs or events) holds on the
     failure path too: an SDK exception's str() can embed the request it was sent --
     for the vision call, that payload includes the image bytes -- so the message
     that reaches the stored investigation and the `error` event must be capped to a
@@ -481,7 +481,7 @@ async def test_voice_note_observations_reach_the_investigator_as_shift_lead_note
 
 @pytest.mark.asyncio
 async def test_no_audio_bytes_reach_the_event_stream(wired, monkeypatch):
-    """CLAUDE.md rule 6: no secrets, no raw upload bytes, in logs or events -- the audio
+    """ENGINEERING_RULES.md rule 6: no secrets, no raw upload bytes, in logs or events -- the audio
     equivalent of test_no_image_bytes_reach_the_event_stream above."""
     monkeypatch.setattr(intake_agent, "analyze_voice_note", lambda *a, **k: VOICE_NOTE)
     marker = b"SECRETAUDIOBYTES" * 10

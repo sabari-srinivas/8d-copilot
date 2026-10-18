@@ -216,7 +216,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </span>
         {/* No "demo data" chip and no "(fictional)" qualifier here — the owner asked for
          * both out of the chrome (CR #5, CR #17). The honesty claim lives in the README
-         * and the deck's data slide instead. See CLAUDE.md rule 5. */}
+         * and the deck's data slide instead. See ENGINEERING_RULES.md rule 5. */}
         {replayCase && (
           <span
             className="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"

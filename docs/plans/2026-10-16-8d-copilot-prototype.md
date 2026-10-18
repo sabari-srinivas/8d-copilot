@@ -1,6 +1,6 @@
 # 8D Copilot Prototype — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Implementation plan, written before the build. Each task is self-contained with its own tests and is reviewed before the next one starts. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a working 8D Copilot prototype that runs locally against real Google Cloud services — defect photo + complaint in, statistically tested root cause and cited 8D out, human-approved actions and quality memory at the end.
 
@@ -52,7 +52,7 @@ Added beyond PRD §11.2 so the build is never blocked on cloud provisioning. Eac
 
 ```
 prototype/                   <- git repo root
-  CLAUDE.md                  golden rule, contract rule, model-from-env rule
+  ENGINEERING_RULES.md                  golden rule, contract rule, model-from-env rule
   README.md  .env.example  .gitignore  firebase.json
   8D_Copilot_PRD.md          the spec (already here, read-only input)
 
@@ -136,7 +136,7 @@ Tasks 0–12 produce the locally running prototype the PRD calls today's goal. T
 ### Task 0: Toolchain, repo skeleton, contract and mocks
 
 **Files:**
-- Create: `prototype/.gitignore`, `prototype/backend/pyproject.toml`, `prototype/backend/pytest.ini`, `prototype/CLAUDE.md`, `prototype/.env.example`, `prototype/README.md`
+- Create: `prototype/.gitignore`, `prototype/backend/pyproject.toml`, `prototype/backend/pytest.ini`, `prototype/ENGINEERING_RULES.md`, `prototype/.env.example`, `prototype/README.md`
 - Create: `prototype/backend/agent/config.py`, `prototype/backend/agent/models.py`, `prototype/backend/agent/__init__.py`, `prototype/backend/agent/tests/__init__.py`, `prototype/backend/agent/tests/conftest.py`, `prototype/backend/agent/tests/test_models.py`
 - Create: `prototype/docs/contract/README.md`, `prototype/docs/contract/mock_events.json`, `prototype/docs/contract/mock_investigation.json`
 - Create: `prototype/backend/infra/probe_models.py`
@@ -271,7 +271,7 @@ FILES_BACKEND=local
 REPLAY_CASE=
 ```
 
-- [ ] **Step 7: Write `prototype/CLAUDE.md`**
+- [ ] **Step 7: Write `prototype/ENGINEERING_RULES.md`**
 
 ```markdown
 # 8D Copilot — rules for code in this repo
@@ -642,12 +642,12 @@ git commit -m "chore: repo skeleton, settings, models, API contract and mocks"
 
 ### Task 1: Planted-truth data that survives the direction-aware rule
 
-The two scripts in `Claude outputs/` are the starting point. Three things must change: the defect window leaks past L2609–L2614, `check_plant.py` only prints where the PRD says it must assert, and its verdict rule ignores direction — which would mark the stencil decoy `supported` instead of `rejected`.
+The two draft scripts are the starting point. Three things must change: the defect window leaks past L2609–L2614, `check_plant.py` only prints where the PRD says it must assert, and its verdict rule ignores direction — which would mark the stencil decoy `supported` instead of `rejected`.
 
 **Files:**
 - Create: `prototype/backend/data/constants.py`
-- Create: `prototype/backend/data/generate_plant.py` (seeded from `../Claude outputs/generate_plant.py`)
-- Create: `prototype/backend/data/check_plant.py` (rewritten from `../Claude outputs/check_plant.py`)
+- Create: `prototype/backend/data/generate_plant.py` (seeded from `../prototype-drafts/generate_plant.py`)
+- Create: `prototype/backend/data/check_plant.py` (rewritten from `../prototype-drafts/check_plant.py`)
 - Create: `prototype/backend/agent/tests/test_verdict_rule.py`
 - Create: `prototype/backend/agent/tools/stats_verdict.py`
 
@@ -799,7 +799,7 @@ Expected: 9 passed
 
 - [ ] **Step 6: Port the generator and close the defect-window leak**
 
-Copy `../Claude outputs/generate_plant.py` to `data/generate_plant.py`, then make these four changes.
+Copy `../prototype-drafts/generate_plant.py` to `data/generate_plant.py`, then make these four changes.
 
 **6a. Import the constants** instead of redefining `SEED`, `PRODUCT`, `WO388_DATE` and the drift lot list.
 

@@ -341,7 +341,7 @@ class PlantLot(BaseModel):
     the dashboard's yield/Pareto/SPC tiles. Deliberately includes `operator_id` and
     `shift` (this is raw plant data, the same columns a real MES would show) but the
     Plant screen must never render an aggregate "defects by operator/shift" view --
-    the product's own rule that operator error is never a root cause (CLAUDE.md)."""
+    the product's own rule that operator error is never a root cause (ENGINEERING_RULES.md)."""
     lot_id: str
     line: str
     shift: str

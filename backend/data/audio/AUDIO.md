@@ -25,7 +25,7 @@ supported audio MIME types and needs no further transcoding for `voice_tool.py`.
 Vertex quota was tight enough that the task spec called for exactly one live call. The
 Tamil file exercises the Tamil/Hindi path in the unit tests only (hermetic, via a
 monkeypatched `generate_structured`), not against the live model. See
-`.superpowers/sdd/2026-10-16-8d-copilot-prototype/voice-intake-report.md` for the live
+the build report for the live
 call's verbatim transcript/extraction and the fixture it produced
 (`backend/agent/tests/fixtures/voice_note_clean.json`).
 

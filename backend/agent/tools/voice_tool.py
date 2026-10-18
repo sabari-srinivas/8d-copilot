@@ -29,7 +29,7 @@ def analyze_voice_note(audio_bytes: bytes, mime_type: str = "audio/wav") -> Voic
     # never heard of `audio/mp4`, so both are mapped to a spelling it accepts before the
     # call -- the single choke point, the same way vision_tool re-encodes images.
     mime_type = normalize_audio_mime(mime_type)
-    # Byte count and mime type only -- never the audio itself (CLAUDE.md rule 6),
+    # Byte count and mime type only -- never the audio itself (ENGINEERING_RULES.md rule 6),
     # exactly like vision_tool.analyze_defect_image's own log line.
     log.info("analysing voice note (%d bytes, %s)", len(audio_bytes), mime_type)
     part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)

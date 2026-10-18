@@ -65,7 +65,7 @@ function LotRow({
  * dashboard's numbers are decorative can click through from any tile and find the raw
  * rows they were computed from. Deliberately no "defects by operator/shift" view, even
  * though both columns are shown here — operator error is never a root cause in this
- * product (CLAUDE.md). */
+ * product (ENGINEERING_RULES.md). */
 export function Plant() {
   const [lots, setLots] = useState<PlantLot[] | null>(null);
   const [maintenance, setMaintenance] = useState<MaintenanceEvent[]>([]);
