@@ -46,7 +46,44 @@ export function canRecordAudio(): boolean {
   );
 }
 
+/** How long to wait for `getUserMedia` before giving up on it.
+ *
+ * Found by driving the deployed page: a browser that never answers the permission prompt
+ * — the user dismissed it rather than choosing, or there is no capture device at all —
+ * leaves the promise pending forever, and the Record button sat disabled on "Waiting for
+ * the microphone…" with no way back. For a judge trying the demo that is a dead end, so
+ * the wait is bounded and the UI returns to a state they can act on. */
+const MIC_TIMEOUT_MS = 15_000;
+
 type Phase = "idle" | "starting" | "recording" | "transcribing" | "done" | "error";
+
+/** Thrown when the microphone never answers, so `startRecording` can tell that case
+ * apart from a real `getUserMedia` failure and say something useful about it. */
+class MicTimeoutError extends Error {}
+
+/** Resolve with the stream, or reject once `MIC_TIMEOUT_MS` passes.
+ *
+ * A late-arriving stream is stopped rather than leaked: `getUserMedia` is not
+ * cancellable, so if permission is granted after we have given up, the browser would
+ * otherwise hold an open microphone — and show its "this page is listening" indicator —
+ * for a recording nobody is making. */
+function withTimeout(promise: Promise<MediaStream>): Promise<MediaStream> {
+  let timer: ReturnType<typeof setTimeout>;
+  let settled = false;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      settled = true;
+      reject(new MicTimeoutError("the microphone did not respond"));
+    }, MIC_TIMEOUT_MS);
+  });
+  promise.then(
+    (stream) => {
+      if (settled) stream.getTracks().forEach((track) => track.stop());
+    },
+    () => {},
+  );
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 /** A stopwatch that counts whole seconds while `running`, resetting on each new run.
  * Kept out of the component body so the interval's lifecycle is tied to one effect
@@ -79,6 +116,12 @@ export function VoiceRecorder({
   const [phase, setPhase] = useState<Phase>("idle");
   const [note, setNote] = useState<VoiceNote | null>(null);
   const [error, setError] = useState<string>("");
+  // Set once the microphone has failed to start, and never cleared: someone who has
+  // blocked the permission outright cannot retry their way out of it, so the file
+  // picker appears as a way to use the feature at all. Kept available afterwards even
+  // if a later attempt succeeds — having offered it, taking it away would be worse.
+  const [micFailed, setMicFailed] = useState(false);
+  const [fallbackName, setFallbackName] = useState("");
   const elapsed = useElapsedSeconds(phase === "recording");
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -101,7 +144,7 @@ export function VoiceRecorder({
     setNote(null);
     setPhase("starting");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await withTimeout(navigator.mediaDevices.getUserMedia({ audio: true }));
       streamRef.current = stream;
       const mimeType = pickMimeType();
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -121,13 +164,23 @@ export function VoiceRecorder({
     } catch (err) {
       releaseMicrophone();
       setPhase("error");
+      setMicFailed(true);
       // NotAllowedError is the user clicking "Block", which is not a malfunction and
-      // should not read like one. Everything else is reported as-is.
-      setError(
-        err instanceof DOMException && err.name === "NotAllowedError"
-          ? "Microphone access was blocked. Allow it in your browser, or choose an audio file instead."
-          : "Could not start recording on this device. Choose an audio file instead.",
-      );
+      // should not read like one. A timeout usually means the permission prompt was
+      // dismissed rather than answered, so it names that. Everything else is generic.
+      if (err instanceof MicTimeoutError) {
+        setError(
+          "The microphone did not respond. If your browser asked for permission, " +
+            "answer the prompt and press Record again.",
+        );
+      } else if (err instanceof DOMException && err.name === "NotAllowedError") {
+        setError(
+          "Microphone access was blocked. Allow it in your browser, or reload the page " +
+            "to be asked again.",
+        );
+      } else {
+        setError("Could not start recording on this device.");
+      }
     }
   }
 
@@ -248,6 +301,32 @@ export function VoiceRecorder({
           <AlertCircle size={15} aria-hidden="true" className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </p>
+      )}
+
+      {micFailed && (
+        <div className="mt-2">
+          <label htmlFor="voice_note" className="block text-xs opacity-70 mb-1">
+            Or choose an audio file instead:
+          </label>
+          {/* `name="voice_note"` means the enclosing form posts this with everything
+            * else, with no extra wiring — the same field a recorded blob would use. The
+            * two cannot collide: this input only exists once recording has failed, so
+            * there is no blob for the parent to set over it. */}
+          <input
+            id="voice_note"
+            name="voice_note"
+            type="file"
+            accept="audio/*"
+            onChange={(e) => setFallbackName(e.target.files?.[0]?.name ?? "")}
+            className="tap-target w-full rounded-lg border p-2 text-sm file:mr-3 file:tap-target file:rounded-md file:border-0 file:px-3 file:text-sm file:font-medium file:text-[var(--pill-fg-strong)] file:bg-[var(--green)]"
+            style={{ borderColor: "var(--line)" }}
+          />
+          {fallbackName && (
+            <p className="text-xs opacity-60 mt-1" aria-live="polite">
+              Selected: {fallbackName} — it will be read when the investigation starts.
+            </p>
+          )}
+        </div>
       )}
 
       {note && <TranscriptPanel note={note} />}

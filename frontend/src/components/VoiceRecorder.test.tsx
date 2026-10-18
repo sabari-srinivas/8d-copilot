@@ -228,6 +228,53 @@ describe("VoiceRecorder", () => {
     expect(transcribeVoiceNote).not.toHaveBeenCalled();
   });
 
+  it("gives up on a microphone that never answers, instead of staying stuck", async () => {
+    // Found on the deployed page: a prompt that is dismissed rather than answered leaves
+    // getUserMedia pending forever, and the Record button sat disabled with no way back.
+    vi.useFakeTimers();
+    const getUserMedia = vi.fn().mockReturnValue(new Promise(() => {}));
+    installMediaStack({ getUserMedia });
+    const { VoiceRecorder } = await importRecorder();
+    render(<VoiceRecorder onAudioChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /start recording/i }));
+    expect(screen.getByText(/waiting for the microphone/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /start recording/i })).toHaveProperty(
+      "disabled",
+      true,
+    );
+
+    await vi.advanceTimersByTimeAsync(16_000);
+    vi.useRealTimers();
+
+    expect((await screen.findByRole("alert")).textContent).toMatch(/did not respond/i);
+    // The way out: the button is usable again.
+    expect(screen.getByRole("button", { name: /start recording/i })).toHaveProperty(
+      "disabled",
+      false,
+    );
+  });
+
+  it("offers a file picker once the microphone has failed", async () => {
+    const getUserMedia = vi.fn().mockRejectedValue(
+      new DOMException("denied", "NotAllowedError"),
+    );
+    installMediaStack({ getUserMedia });
+    const { VoiceRecorder } = await importRecorder();
+    const { container } = render(<VoiceRecorder onAudioChange={vi.fn()} />);
+
+    expect(container.querySelector('input[type="file"]')).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /start recording/i }));
+    await screen.findByRole("alert");
+
+    // Someone who blocked the permission outright cannot retry their way out of it, so
+    // the feature has to stay reachable. `name="voice_note"` is what makes the enclosing
+    // form post it with no extra wiring.
+    const file = container.querySelector('input[type="file"]');
+    expect(file).not.toBeNull();
+    expect(file?.getAttribute("name")).toBe("voice_note");
+  });
+
   it("reports an empty recording instead of posting a zero-byte blob", async () => {
     installMediaStack();
     const onAudioChange = vi.fn();
