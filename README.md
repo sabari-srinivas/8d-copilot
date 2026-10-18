@@ -1,5 +1,15 @@
 # 8D Copilot
 
+**Live demo: [d-copilot-2026.web.app](https://d-copilot-2026.web.app) · access code `demo-b1b20c`**
+
+> Start at **Complaints → Hoshino Denso · C-2026-031**, upload
+> [`backend/data/images/defect_03.jpg`](backend/data/images/defect_03.jpg) as the defect
+> photo, and optionally press the mic and say *"bridging again on line two, the vendor
+> looked at the oven on Wednesday"* — Gemini reads the audio directly, in English, Tamil
+> or Hindi. Upload your own board photo if you prefer; the vision call is live, and a
+> photo with no visible defect correctly returns *"no defect visible"* rather than
+> inventing one.
+
 A quality-engineering agent for an SMT electronics plant. A photo and a customer complaint
 go in; a statistically tested root cause and a cited 8D report come out.
 
