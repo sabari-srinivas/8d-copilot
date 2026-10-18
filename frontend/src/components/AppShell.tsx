@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { getHealth, listComplaints } from "../api/client";
+import { getHealth, listComplaints, prefetchAll } from "../api/client";
 import type { Complaint } from "../api/types";
 
 // The five tabs read left to right as the quality engineer's actual working sequence:
@@ -50,11 +50,6 @@ function useReplayCase(): string | null {
   return replay;
 }
 
-/** The sidebar's "Complaints" row with its own expand/collapse -- a dropdown of two
- * groups (open complaints; past investigations), each a direct link, so a quality
- * engineer can jump straight to one complaint without going through the Complaints
- * screen first. Collapsed by default; independent of the sidebar's own collapse state
- * (only rendered at all when the sidebar itself is expanded). */
 /** The two views the Complaints screen can show, and the only things the sidebar
  * dropdown lists (CR #17). `?view=past` is what the page branches on — a query param
  * rather than a second route, so a judge who lands on `/complaints` with no param gets
@@ -177,6 +172,11 @@ function ComplaintsNavItem({ collapsedSidebar }: { collapsedSidebar: boolean }) 
 export function AppShell({ children }: { children: ReactNode }) {
   const replayCase = useReplayCase();
   const [collapsed, setCollapsed] = useState(readCollapsed);
+
+  // CR #18: warm every tab's data once, in the background, as soon as the shell is up.
+  // Each tab fetches on mount, so without this a judge pays the full round trip the
+  // first time they open each one. Empty dep array: once per session, not per render.
+  useEffect(prefetchAll, []);
 
   function toggleCollapsed() {
     setCollapsed((prev) => {

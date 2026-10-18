@@ -89,6 +89,35 @@ def get_store() -> PlantStore:
     return BigQueryPlantStore() if get_settings().plant_backend == "bigquery" else CsvPlantStore()
 
 
+@lru_cache(maxsize=None)
+def _table_cached(name: str) -> pd.DataFrame:
+    """One read per table per process, for the three tables `_joined_cached` doesn't
+    already cover.
+
+    Under PLANT_BACKEND=bigquery every `PlantStore._read` is a network round trip, and
+    the uncached reads were being made per *item* rather than per request:
+    `get_capa_lots` is called once per CAPA by `list_capas_with_effectiveness`, so
+    `GET /api/capas` with 8 CAPAs issued 8 identical `SELECT * FROM capa_lots` queries
+    and took ~7.5 s. `GET /api/dashboard/summary` does the same work plus a complaints
+    read and took ~8.7 s. Measured, not guessed — see docs/CHANGE_REQUESTS.md #18.
+
+    These are static reference tables: they change when `infra/load_data.sh` runs
+    `bq load`, which is a deploy-time action, never a request-time one. Caching them for
+    the life of the process is the same decision `_joined_cached` already makes about
+    lots+process, extended to the rest.
+
+    Never returned directly — every caller goes through a wrapper that copies, so one
+    caller's in-place mutation cannot poison the next (the bug that split
+    `joined()`/`_joined_cached()` in the first place).
+    """
+    return getattr(get_store(), name)()
+
+
+def _table(name: str) -> pd.DataFrame:
+    """A private copy of a cached reference table. See `_table_cached`."""
+    return _table_cached(name).copy()
+
+
 @lru_cache
 def _joined_cached() -> pd.DataFrame:
     """Reads and joins the CSVs once per process. Never returned directly — joined()
@@ -112,16 +141,31 @@ def joined() -> pd.DataFrame:
     return _joined_cached().copy()
 
 
-def _reset_caches() -> None:
-    """Clear get_store/_joined_cached caches. For tests only — production code never
-    calls this.
+def warm_plant_cache() -> None:
+    """Fill every plant-data cache up front, so no request pays for the first read.
 
-    get_store() and _joined_cached() are @lru_cache'd on purpose for request-path
-    performance, but that means a test that regenerates the CSVs or flips
-    PLANT_BACKEND mid-session would silently keep reading stale data without this.
+    Called once from the app's lifespan (agent/main.py). Under PLANT_BACKEND=bigquery
+    this is five network reads; under csv it is five small file reads and effectively
+    free. Safe to call more than once — each underlying read is @lru_cache'd, so a
+    second call is a no-op.
+    """
+    _joined_cached()
+    for name in ("complaints", "maintenance", "capa_lots"):
+        _table_cached(name)
+
+
+def _reset_caches() -> None:
+    """Clear every plant-data cache. For tests only — production code never calls this.
+
+    These are @lru_cache'd on purpose for request-path performance, but that means a
+    test that regenerates the CSVs or flips PLANT_BACKEND mid-session would silently
+    keep reading stale data without this. Any new cache in this module must be added
+    here too, or it becomes a source of cross-test contamination that only shows up as
+    an unrelated test failing in a particular order.
     """
     get_store.cache_clear()
     _joined_cached.cache_clear()
+    _table_cached.cache_clear()
 
 
 def get_lot_genealogy(lot_id: str) -> dict:
@@ -166,7 +210,7 @@ def get_process_window(product: str = PRODUCT, days: int = 30) -> dict:
 
 
 def get_maintenance_events(line: str, since: str | None = None) -> list[dict]:
-    m = get_store().maintenance()
+    m = _table("maintenance")
     m = m[m.line == line]
     if since:
         m = m[pd.to_datetime(m.date) >= pd.Timestamp(since)]
@@ -183,7 +227,7 @@ def get_capa_lots(capa_id: str) -> pd.DataFrame:
     only in agent.state, never in this CSV. See get_capa_defect_series for the fallback
     that covers that case.
     """
-    rows = get_store().capa_lots()
+    rows = _table_cached("capa_lots")
     return rows[rows.capa_id == capa_id].copy()
 
 
@@ -254,7 +298,7 @@ def list_maintenance() -> list[MaintenanceEvent]:
     has no such "n/a" sentinel), so this is CSV-backend-only, same as
     plant_data._stringify_dates's DATE-column fixup above.
     """
-    m = get_store().maintenance().fillna("n/a").sort_values("date")
+    m = _table("maintenance").fillna("n/a").sort_values("date")
     return [MaintenanceEvent(**row) for row in m.to_dict("records")]
 
 

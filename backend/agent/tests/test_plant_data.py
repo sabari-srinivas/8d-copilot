@@ -219,3 +219,75 @@ def test_reset_caches_clears_both_lru_caches():
     assert store_after is not store_before
     assert cached_after is not cached_before
     assert cached_after.equals(cached_before)
+
+
+class TestReferenceTablesAreReadOncePerProcess:
+    """CR #18. Under PLANT_BACKEND=bigquery every PlantStore read is a network round
+    trip, and the uncached ones were being made per *item* rather than per request --
+    `get_capa_lots` is called once per CAPA, so listing 8 CAPAs issued 8 identical
+    `SELECT * FROM capa_lots` queries and `GET /api/capas` took ~7.5 s."""
+
+    def _counting_store(self, monkeypatch):
+        from agent.tools import plant_data
+        plant_data._reset_caches()
+        calls = {"capa_lots": 0, "complaints": 0, "maintenance": 0}
+        real = plant_data.CsvPlantStore()
+
+        class Counting:
+            def lots(self): return real.lots()
+            def process(self): return real.process()
+            def capa_lots(self):
+                calls["capa_lots"] += 1
+                return real.capa_lots()
+            def complaints(self):
+                calls["complaints"] += 1
+                return real.complaints()
+            def maintenance(self):
+                calls["maintenance"] += 1
+                return real.maintenance()
+
+        monkeypatch.setattr(plant_data, "get_store", lambda: Counting())
+        return calls
+
+    def test_many_capa_lookups_read_the_table_once(self, monkeypatch):
+        from agent.tools.plant_data import get_capa_lots
+        calls = self._counting_store(monkeypatch)
+        for capa_id in ("CAPA-0083", "CAPA-0088", "CAPA-0091", "CAPA-0094",
+                        "CAPA-0097", "CAPA-0098", "CAPA-0142", "CAPA-0143"):
+            get_capa_lots(capa_id)
+        assert calls["capa_lots"] == 1, (
+            f"8 CAPA lookups issued {calls['capa_lots']} table reads; under BigQuery "
+            "each is a network round trip and this is the /api/capas latency")
+
+    def test_repeated_complaint_and_maintenance_reads_hit_the_cache(self, monkeypatch):
+        from agent.tools.intake_tools import list_complaints
+        from agent.tools.plant_data import list_maintenance
+        calls = self._counting_store(monkeypatch)
+        for _ in range(3):
+            list_complaints()
+            list_maintenance()
+        assert calls["complaints"] == 1
+        assert calls["maintenance"] == 1
+
+    def test_a_caller_mutating_its_frame_cannot_poison_the_next(self, monkeypatch):
+        """The reason `_table` copies outside the cached function -- the same bug that
+        split joined()/_joined_cached()."""
+        from agent.tools.plant_data import _table
+        self._counting_store(monkeypatch)
+        first = _table("complaints")
+        first.drop(first.index, inplace=True)
+        assert not _table("complaints").empty
+
+    def test_reset_clears_the_new_cache_too(self):
+        """A cache missing from _reset_caches becomes cross-test contamination that
+        only shows up as an unrelated test failing in a particular order.
+
+        Deliberately not using `_counting_store`: it monkeypatches `get_store` with a
+        plain lambda, and `_reset_caches` calls `get_store.cache_clear()` — so the
+        helper would make this test fail on the wrong thing.
+        """
+        from agent.tools.plant_data import _reset_caches, _table_cached, list_maintenance
+        list_maintenance()
+        assert _table_cached.cache_info().currsize > 0
+        _reset_caches()
+        assert _table_cached.cache_info().currsize == 0

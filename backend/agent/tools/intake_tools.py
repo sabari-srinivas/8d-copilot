@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 
 from agent.models import Complaint, TravelerRow
 from agent.tools.llm import generate_structured, load_prompt
-from agent.tools.plant_data import get_store
+from agent.tools.plant_data import _table
 from data.constants import SCENARIO_YEAR
 
 log = logging.getLogger(__name__)
@@ -171,7 +171,7 @@ def list_complaints(today: date | None = None) -> list[Complaint]:
     """The inbox. Parsed fields come from the dataset, so no model call per page load
     (PRD 7 screen 0: 'cached after first run')."""
     today = today or date.today()
-    return [_row_to_complaint(row, today) for row in get_store().complaints().to_dict("records")]
+    return [_row_to_complaint(row, today) for row in _table("complaints").to_dict("records")]
 
 
 def get_complaint_record(complaint_id: str, today: date | None = None) -> Complaint | None:
@@ -183,6 +183,6 @@ def get_complaint_record(complaint_id: str, today: date | None = None) -> Compla
     full D1-D8 text it is rejecting, are facts about the complaint record, not
     something a model should reconstruct from a snippet of text on every run."""
     today = today or date.today()
-    rows = get_store().complaints().to_dict("records")
+    rows = _table("complaints").to_dict("records")
     row = next((r for r in rows if r["complaint_id"] == complaint_id), None)
     return _row_to_complaint(row, today) if row is not None else None

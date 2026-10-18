@@ -17,7 +17,7 @@ from agent.tools.capa_check import seed_historical_capa
 from agent.tools.dashboard import get_dashboard_summary, list_capas_with_effectiveness
 from agent.tools.intake_tools import list_complaints
 from agent.tools.memory import list_quality_memory, seed_historical_quality_memory
-from agent.tools.plant_data import list_maintenance, list_plant_lots
+from agent.tools.plant_data import list_maintenance, list_plant_lots, warm_plant_cache
 from agent.tools.seed_past_investigations import seed_past_investigations
 from agent.tools.storage import get_local_path
 from agent.tools.voice_tool import analyze_voice_note
@@ -53,6 +53,19 @@ async def lifespan(app: FastAPI):
         seed_past_investigations()
     except Exception as exc:
         log.warning("past-investigations seed failed: %s", exc.__class__.__name__)
+    try:
+        # CR #18: pull every plant table into the process cache now, while nobody is
+        # waiting. Under PLANT_BACKEND=bigquery these are network reads, and the first
+        # request to arrive after a cold start would otherwise pay for all of them --
+        # measured at ~5 s on GET /api/dashboard/summary. Warming here moves that cost
+        # off the request path entirely: the seeds above already make this the slow
+        # part of startup, so it adds nothing a user waits for.
+        #
+        # Best-effort like the seeds: a failure here is a slow first request, not a
+        # broken service, and every caller re-reads through the same cache anyway.
+        warm_plant_cache()
+    except Exception as exc:
+        log.warning("plant cache warm failed: %s", exc.__class__.__name__)
     yield
 
 

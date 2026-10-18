@@ -37,6 +37,55 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** In-flight and settled GETs, keyed by path (CR #18).
+ *
+ * Every tab refetches its data on mount, so moving between tabs re-paid the full
+ * server cost each time — most of a second even after the backend caching, and the
+ * screen shows "Loading…" for every one of them. These are read-only rollups over
+ * data that only changes when an investigation is approved, so the second visit to a
+ * tab should be instant.
+ *
+ * The map holds the *promise*, not the resolved value, which also collapses concurrent
+ * callers: `prefetchAll()` and a tab mounting at the same moment share one request
+ * rather than racing two. A rejected entry is dropped so a failure is retried rather
+ * than cached forever. */
+const cache = new Map<string, Promise<unknown>>();
+
+function cachedJson<T>(path: string): Promise<T> {
+  const hit = cache.get(path);
+  if (hit) return hit as Promise<T>;
+  const pending = json<T>(path).catch((err) => {
+    cache.delete(path);
+    throw err;
+  });
+  cache.set(path, pending);
+  return pending;
+}
+
+/** Drop everything cached, so the next read goes to the server.
+ *
+ * Called after an approval, which is the only thing in the product that changes any of
+ * this: it creates a CAPA, a hold and a memory entry, and moves a complaint on. Without
+ * this, approving an investigation would leave the CAPA tab showing the state from
+ * before it. */
+export function invalidateCache(): void {
+  cache.clear();
+}
+
+/** Warm every tab's data in the background, once, after the shell mounts.
+ *
+ * Deliberately fire-and-forget and deliberately not awaited by anything: a judge
+ * clicking a tab two seconds after landing should find it already there, and a failure
+ * here must never block a screen that can fetch for itself. Errors are swallowed for
+ * that reason — `cachedJson` has already removed the failed entry, so the tab's own
+ * fetch will retry and surface the error in context. */
+export function prefetchAll(): void {
+  for (const path of ["/complaints", "/dashboard/summary", "/capas", "/memory",
+                      "/plant/lots", "/plant/maintenance"]) {
+    cachedJson(path).catch(() => {});
+  }
+}
+
 /** The backend hands back file paths relative to its own origin — `/api/files/...`
  * (local files backend) — under `photo_url` and `chart_url`. In dev the frontend
  * and the API run on different origins (Vite on 5173, uvicorn on 8000), so a bare
@@ -58,7 +107,7 @@ export function resolveApiUrl(path: string | null | undefined): string | null {
 }
 
 export const listComplaints = (): Promise<Complaint[]> =>
-  USE_MOCKS ? mockComplaints() : json<Complaint[]>("/complaints");
+  USE_MOCKS ? mockComplaints() : cachedJson<Complaint[]>("/complaints");
 
 export const getInvestigation = (id: string): Promise<Investigation> =>
   USE_MOCKS ? mockInvestigation() : json<Investigation>(`/investigations/${id}`);
@@ -110,29 +159,34 @@ export const transcribeVoiceNote = async (
   return json<VoiceNote>("/voice/transcribe", { method: "POST", body: form });
 };
 
-export const approve = (id: string, body: ApproveBody): Promise<ApproveResult> =>
-  USE_MOCKS
-    ? mockApproval()
-    : json<ApproveResult>(`/investigations/${id}/approve`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
+/** Approving is the one action that changes what every cached tab shows — it creates a
+ * CAPA, a lot hold and a quality-memory entry. The cache is dropped on the way out so
+ * the CAPA and Memory tabs show the new records rather than the state from before. */
+export const approve = async (id: string, body: ApproveBody): Promise<ApproveResult> => {
+  if (USE_MOCKS) return mockApproval();
+  const result = await json<ApproveResult>(`/investigations/${id}/approve`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  invalidateCache();
+  return result;
+};
 
 export const listMemory = (): Promise<MemoryEntry[]> =>
-  USE_MOCKS ? mockMemory() : json<MemoryEntry[]>("/memory");
+  USE_MOCKS ? mockMemory() : cachedJson<MemoryEntry[]>("/memory");
 
 export const getDashboardSummary = (): Promise<DashboardSummary> =>
-  USE_MOCKS ? mockDashboardSummary() : json<DashboardSummary>("/dashboard/summary");
+  USE_MOCKS ? mockDashboardSummary() : cachedJson<DashboardSummary>("/dashboard/summary");
 
 export const listCapas = (): Promise<CapaRecord[]> =>
-  USE_MOCKS ? mockCapas() : json<CapaRecord[]>("/capas");
+  USE_MOCKS ? mockCapas() : cachedJson<CapaRecord[]>("/capas");
 
 export const listPlantLots = (): Promise<PlantLot[]> =>
-  USE_MOCKS ? mockPlantLots() : json<PlantLot[]>("/plant/lots");
+  USE_MOCKS ? mockPlantLots() : cachedJson<PlantLot[]>("/plant/lots");
 
 export const listPlantMaintenance = (): Promise<MaintenanceEvent[]> =>
-  USE_MOCKS ? mockPlantMaintenance() : json<MaintenanceEvent[]>("/plant/maintenance");
+  USE_MOCKS ? mockPlantMaintenance() : cachedJson<MaintenanceEvent[]>("/plant/maintenance");
 
 /** Health is advisory — callers must tolerate failure. In mock mode there is no backend,
  * so report a live (non-replay) run rather than pretending to know. */

@@ -345,6 +345,87 @@ in use; worth knowing before recording the screen.
 
 ---
 
+---
+
+## 18. Tab switching was slow — DONE (8.7 s → 0.03 s)
+
+**Measured first, then fixed.** Server-side timings before:
+
+| Endpoint | Before | After |
+|---|---|---|
+| `/api/dashboard/summary` | 8.7 s | 0.23 s |
+| `/api/capas` | 7.5 s | 0.19 s |
+| `/api/plant/maintenance` | 1.2 s | 0.10 s |
+| `/api/complaints` | 1.0 s | 0.09 s |
+
+### The cause: reads per *item*, not per request
+
+`plant_data._joined_cached()` cached the lots+process join, but `capa_lots()`,
+`complaints()` and `maintenance()` were uncached — and under `PLANT_BACKEND=bigquery`
+every one of those is a network round trip. `get_capa_lots()` is called **once per
+CAPA** by `list_capas_with_effectiveness()`, so listing 8 CAPAs issued **8 identical
+`SELECT * FROM capa_lots` queries**. The dashboard does that same work plus a complaints
+read, which is why it was the slowest screen in the product.
+
+These are static reference tables — they change when `infra/load_data.sh` runs `bq
+load`, a deploy-time action, never a request-time one. `_table_cached` now caches them
+for the life of the process, the same decision `_joined_cached` already made about
+lots+process. `_table()` copies outside the cached function so one caller's in-place
+mutation cannot poison the next — the bug that split `joined()`/`_joined_cached()`
+originally.
+
+### Three layers, so the cost is paid nowhere a user can see it
+
+1. **Backend cache** — the fix above.
+2. **Startup warm** (`warm_plant_cache()`, called from the app lifespan) — pulls every
+   table in while nobody is waiting, so even the first request after a cold start is
+   fast. Without it the first visitor paid ~5 s.
+3. **Frontend cache + prefetch** (`client.ts`) — each tab fetches on mount, so revisits
+   re-paid the round trip. Reads are now cached by path, and `prefetchAll()` warms all
+   six in the background as soon as the shell mounts. The cache holds the *promise*, so
+   the sidebar and the page asking at the same moment share one request rather than
+   racing two. A rejected entry is dropped, so a transient 503 doesn't look like a
+   permanently broken tab.
+
+**Invalidation:** approving is the only thing that changes any of this (it creates a
+CAPA, a hold and a memory entry), so `approve()` clears the cache on the way out.
+`getInvestigation` is deliberately **not** cached — the live screen polls it while the
+run progresses, and caching would freeze it at `running` forever.
+
+### Measured in a real browser, click to content on screen
+
+| Tab | First visit | Revisit |
+|---|---|---|
+| Dashboard | 813 ms | 62 ms |
+| Complaints | 34 ms | 27 ms |
+| CAPA | 36 ms | 33 ms |
+| Memory | 31 ms | 35 ms |
+| Plant | 41 ms | 32 ms |
+
+The Dashboard's first visit is chart rendering, not data.
+
+---
+
+## 19. Two near-identical open CAPAs — leftover demo state, not a code bug
+
+`CAPA-0142` and `CAPA-0143` differ only by date. They came from **two separate
+investigations of the same complaint** — `inv_8de98e06` (18 Oct) and `inv_66882e7e`
+(17 Oct), both of complaint `C-2026-033` / lot `L2612`, both approved. Each approval
+correctly created its own CAPA and its own memory entry (`MEM-0001`, `MEM-0002`). The
+code did exactly what it should; the records are accumulated test state in Firestore.
+
+**It should still be cleaned up before judging.** Two identical open CAPAs read as a
+duplicate-detection failure, which is the worst possible misread for a product whose
+pitch is that quality memory stops recurrence.
+
+**The real gap it exposes, worth naming rather than fixing today:** nothing stops the
+same complaint being investigated twice and opening a second CAPA for it. A product
+claiming to manage recurrence should notice an open CAPA on the same complaint, lot and
+defect type and offer to amend it rather than silently opening another. Named here as a
+deliberate gap, not an oversight.
+
+---
+
 ## Scope note — written down deliberately
 
 Approved across both rounds: 8 UI changes, mobile audit, reasoning visibility, voice note

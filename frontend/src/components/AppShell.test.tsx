@@ -12,10 +12,13 @@ const COMPLAINTS = [
   { complaint_id: "C-2026-024", customer: "Araku Components (fictional)", status: "closed" },
 ];
 
+const prefetchAll = vi.fn();
+
 vi.mock("../api/client", () => ({
   getHealth: () => Promise.resolve({ ok: true, model: "", replay: null, backends: {} }),
   listComplaints: () => Promise.resolve(COMPLAINTS),
   listCapas: () => Promise.resolve([]),
+  prefetchAll: () => prefetchAll(),
 }));
 
 // This jsdom environment's own window.localStorage is a non-functional stub (no
@@ -104,6 +107,14 @@ describe("AppShell", () => {
     const shell = screen.getAllByRole("navigation", { name: "Primary" })[0];
     expect(shell.textContent).not.toMatch(/fictional/i);
     expect(document.body.textContent).not.toMatch(/fictional/i);
+  });
+
+  it("warms every tab's data once as soon as the shell mounts", () => {
+    prefetchAll.mockClear();
+    renderShell();
+    // CR #18: each tab fetches on mount, so without this the first visit to each one
+    // pays the full round trip in front of the user.
+    expect(prefetchAll).toHaveBeenCalledTimes(1);
   });
 
   it("moves the persona out of the header to the bottom of the sidebar", () => {
