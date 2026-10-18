@@ -14,6 +14,7 @@ import type {
   MaintenanceEvent,
   MemoryEntry,
   PlantLot,
+  VoiceNote,
 } from "./types";
 
 function blankSection(text: string) {
@@ -417,5 +418,24 @@ export function mockApproval(): Promise<ApproveResult> {
       en: "Dear Hoshino Denso,\n\nThank you for your continued business and for reporting this issue.\n\nWe have completed our investigation into the solder bridging defect on ECU-PCB-7, lot L2611, and share our findings below.\n\nRoot cause: Following work order WO-388 (a reflow profile change on Line 2), the required post-change profile verification was not completed before production resumed. As a result, reflow peak temperature drifted above the qualified profile limit (235-250 degC), causing excess solder flow and bridging between adjacent fine-pitch pads.\n\nCorrective action: Lots produced during the affected window (L2609-L2614) have been placed on hold. Under CAPA-0142, we are re-qualifying the Line 2 reflow profile and confirming it returns within specification before the hold is released (work order WO-412). The control plan is being updated to require sign-off evidence of profile verification after any reflow profile change.\n\nWe apologize for the inconvenience this has caused and are committed to preventing recurrence.\n\nSincerely,\nSree Electronics Quality Team",
     },
     rejected_action_ids: [],
+  });
+}
+
+/** CR #15: what the recorder shows in mock mode, where there is no backend to transcribe
+ * against. A Tamil note on purpose — the recorder's whole claim is that a shift lead can
+ * speak in their own language, and an English placeholder would quietly hide the
+ * transcript/translation split that makes the panel worth looking at. `lot_or_line` is
+ * flagged low-confidence to exercise the "not sure it heard this correctly" warning. */
+export function mockVoiceNote(): Promise<VoiceNote> {
+  return Promise.resolve({
+    language: "ta-IN",
+    language_name: "Tamil",
+    transcript: "ரெண்டாவது லைன்ல மறுபடியும் ப்ரிட்ஜிங் வருது. புதன்கிழமை வெண்டர் வந்து ஓவன் பாத்தாங்க, அதுக்கு அப்புறம்தான் இப்படி.",
+    translation:
+      "Bridging is coming back on line two. The vendor came in on Wednesday and looked at the oven — it has been like this since then.",
+    lot_or_line: "line 2",
+    observations: ["Bridging recurring on line 2"],
+    maintenance_mentions: ["Vendor attended the reflow oven on Wednesday"],
+    low_confidence_fields: ["lot_or_line"],
   });
 }

@@ -3,6 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { createInvestigation, listComplaints } from "../api/client";
 import type { Complaint } from "../api/types";
+import { VoiceRecorder, canRecordAudio } from "../components/VoiceRecorder";
+
+// Read once at module load rather than per render: whether this browser can reach a
+// microphone cannot change while the page is open, and calling it in the body would make
+// the branch below re-evaluate on every keystroke in the complaint text.
+const micAvailable = canRecordAudio();
 
 /** Previous/next among the OPEN complaints, in the same due-date order the inbox shows
  * (CR #8) — lets Priya move to another complaint without detouring back through the
@@ -72,6 +78,11 @@ export function NewInvestigation() {
   const [imageName, setImageName] = useState("");
   const [travelerName, setTravelerName] = useState("");
   const [voiceNoteName, setVoiceNoteName] = useState("");
+  // CR #15: a blob recorded from the microphone, which lives outside the form element
+  // (no file input holds it) and so has to be appended to the FormData by hand.
+  const [recordedAudio, setRecordedAudio] = useState<{ blob: Blob; name: string } | null>(
+    null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -108,6 +119,9 @@ export function NewInvestigation() {
     data.set("complaint_id", complaintId);
     data.set("complaint_text", complaintText);
     data.set("lot_id", lotId);
+    // Posted under the same field name the file input used, so the endpoint sees no
+    // difference between a recording and a chosen file (CR #15).
+    if (recordedAudio) data.set("voice_note", recordedAudio.blob, recordedAudio.name);
 
     setSubmitting(true);
     try {
@@ -211,23 +225,41 @@ export function NewInvestigation() {
         </div>
 
         <div>
-          <label htmlFor="voice_note" className="block text-sm font-medium mb-1">
+          <span id="voice_note_label" className="block text-sm font-medium mb-1">
             Shift lead voice note <span className="font-normal opacity-60">— optional</span>
-          </label>
-          <input
-            id="voice_note"
-            name="voice_note"
-            type="file"
-            accept="audio/*"
-            onChange={(e) => setVoiceNoteName(e.target.files?.[0]?.name ?? "")}
-            className="tap-target w-full rounded-lg border p-2 text-sm file:mr-3 file:tap-target file:rounded-md file:border-0 file:px-3 file:text-sm file:font-medium file:text-[var(--pill-fg-strong)] file:bg-[var(--green)]"
-            style={{ borderColor: "var(--line)" }}
-          />
-          <p className="text-xs opacity-60 mt-1" aria-live="polite">
-            {voiceNoteName
-              ? `Selected: ${voiceNoteName}`
-              : "A recorded remark from the floor — Gemini reads it directly, in English, Tamil or Hindi."}
+          </span>
+          <p className="text-xs opacity-60 mb-2">
+            Speak a remark from the floor — Gemini reads the audio directly, in English,
+            Tamil or Hindi.
           </p>
+          {micAvailable ? (
+            // CR #15: live capture, not a file picker. The blob never touches the form
+            // element, so `new FormData(form)` cannot see it — it is appended by hand in
+            // onSubmit from `recordedAudio` below.
+            <VoiceRecorder onAudioChange={(blob, name) => setRecordedAudio(blob && { blob, name })} />
+          ) : (
+            // A browser with no MediaRecorder, or an insecure origin where
+            // `navigator.mediaDevices` is undefined. The feature still works, it just
+            // needs a file. This branch keeps the original `name="voice_note"` input, so
+            // the form posts it the way it always did.
+            <>
+              <input
+                id="voice_note"
+                name="voice_note"
+                type="file"
+                accept="audio/*"
+                aria-labelledby="voice_note_label"
+                onChange={(e) => setVoiceNoteName(e.target.files?.[0]?.name ?? "")}
+                className="tap-target w-full rounded-lg border p-2 text-sm file:mr-3 file:tap-target file:rounded-md file:border-0 file:px-3 file:text-sm file:font-medium file:text-[var(--pill-fg-strong)] file:bg-[var(--green)]"
+                style={{ borderColor: "var(--line)" }}
+              />
+              <p className="text-xs opacity-60 mt-1" aria-live="polite">
+                {voiceNoteName
+                  ? `Selected: ${voiceNoteName}`
+                  : "This browser cannot record audio, so choose a file instead."}
+              </p>
+            </>
+          )}
         </div>
 
         {error && (

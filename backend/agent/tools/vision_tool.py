@@ -6,6 +6,7 @@ from PIL import Image
 
 from agent.models import Defect
 from agent.tools.llm import generate_structured, load_prompt
+from agent.tools.media_types import image_needs_reencoding
 
 log = logging.getLogger(__name__)
 
@@ -24,24 +25,41 @@ MAX_LONG_EDGE_PX = 1024
 VISION_TEMPERATURE = 0.0
 
 
-def _shrink_to_long_edge(image_bytes: bytes, mime_type: str,
-                         max_edge: int = MAX_LONG_EDGE_PX) -> tuple[bytes, str]:
-    """Downscale so the image's long edge is at most `max_edge` px, re-encoding as JPEG.
-    Returns the original bytes/mime_type unchanged if already small enough, or if the bytes
-    can't be decoded as an image (so a bad `tiny.jpg`-style fixture never crashes this path)."""
+def _prepare_for_model(image_bytes: bytes, mime_type: str,
+                       max_edge: int = MAX_LONG_EDGE_PX) -> tuple[bytes, str]:
+    """Get an arbitrary upload into something Gemini accepts, at a sane size.
+
+    Two independent reasons to re-encode, either of which is enough:
+
+    * the long edge is over `max_edge` px (latency, see above), or
+    * the type is one the model rejects -- GIF, BMP, TIFF and friends. A judge
+      experimenting with the deployed prototype uploads whatever is on their laptop, and
+      failing on a GIF would look like the vision step is broken rather than picky. Only
+      PNG/JPEG/WEBP/HEIC/HEIF survive untouched (`media_types.GEMINI_IMAGE_TYPES`).
+
+    Returns the original bytes and type when neither applies, or when the bytes can't be
+    decoded as an image at all -- a bad `tiny.jpg`-style fixture must not crash this path,
+    and an undecodable HEIC (Pillow has no HEIC support, but Gemini does) is better passed
+    through to a model that can read it than rejected here.
+    """
     try:
         img = Image.open(io.BytesIO(image_bytes))
         img.load()
     except Exception:
         return image_bytes, mime_type
     width, height = img.size
-    if max(width, height) <= max_edge:
+    too_big = max(width, height) > max_edge
+    unsupported = image_needs_reencoding(mime_type)
+    if not too_big and not unsupported:
         return image_bytes, mime_type
-    scale = max_edge / max(width, height)
-    new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
-    resized = img.convert("RGB").resize(new_size, Image.LANCZOS)
+    if too_big:
+        scale = max_edge / max(width, height)
+        img = img.resize((max(1, round(width * scale)), max(1, round(height * scale))),
+                         Image.LANCZOS)
     buf = io.BytesIO()
-    resized.save(buf, format="JPEG", quality=90)
+    # `convert("RGB")` last, and unconditionally: a palette GIF or an RGBA PNG cannot be
+    # saved as JPEG without it, and the resize above preserves whatever mode it started in.
+    img.convert("RGB").save(buf, format="JPEG", quality=90)
     return buf.getvalue(), "image/jpeg"
 
 
@@ -49,7 +67,7 @@ def analyze_defect_image(image_bytes: bytes, mime_type: str = "image/jpeg") -> D
     if not image_bytes:
         raise ValueError("empty image: nothing to analyse")
     from google.genai import types
-    image_bytes, mime_type = _shrink_to_long_edge(image_bytes, mime_type)
+    image_bytes, mime_type = _prepare_for_model(image_bytes, mime_type)
     log.info("analysing defect image (%d bytes, %s)", len(image_bytes), mime_type)
     part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
     return generate_structured(load_prompt("vision"), Defect, parts=[part],

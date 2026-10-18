@@ -58,3 +58,60 @@ def test_image_bytes_are_never_logged(caplog, stub):
     with caplog.at_level("DEBUG"):
         vision_tool.analyze_defect_image(b"\xff\xd8\xff\xe0SECRETBYTES", "image/jpeg")
     assert "SECRETBYTES" not in caplog.text
+
+
+class TestArbitraryJudgeUploads:
+    """A judge experimenting with the deployed prototype uploads whatever is on their
+    laptop. `_prepare_for_model` is what stands between that and a model 400."""
+
+    @staticmethod
+    def _image(fmt: str, size=(40, 30), mode="RGB") -> bytes:
+        import io
+
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new(mode, size, "white").save(buf, format=fmt)
+        return buf.getvalue()
+
+    def test_a_gif_is_converted_to_jpeg_rather_than_rejected(self):
+        """GIF is not in Gemini's accepted list. Failing on one would look like the
+        vision step is broken rather than picky, so it is re-encoded even though it is
+        well under the size threshold that would otherwise trigger a resize."""
+        out_bytes, out_mime = vision_tool._prepare_for_model(self._image("GIF"), "image/gif")
+        assert out_mime == "image/jpeg"
+        assert out_bytes[:2] == b"\xff\xd8"          # JPEG SOI marker
+
+    def test_a_palette_mode_gif_converts_without_raising(self):
+        """Pillow cannot save mode "P" as JPEG at all -- this is the case the
+        unconditional convert("RGB") exists for, and it is what a real GIF is."""
+        out_bytes, out_mime = vision_tool._prepare_for_model(
+            self._image("GIF", mode="P"), "image/gif")
+        assert out_mime == "image/jpeg"
+        assert out_bytes[:2] == b"\xff\xd8"
+
+    def test_an_rgba_png_over_the_size_limit_converts_without_raising(self):
+        """The other mode JPEG cannot hold. A screenshot with transparency, scaled."""
+        big = self._image("PNG", size=(2000, 1200), mode="RGBA")
+        out_bytes, out_mime = vision_tool._prepare_for_model(big, "image/png")
+        assert out_mime == "image/jpeg"
+        assert out_bytes[:2] == b"\xff\xd8"
+
+    def test_a_small_png_is_left_exactly_as_it_arrived(self):
+        """PNG is accepted and under the threshold: re-encoding it would lose quality
+        for nothing."""
+        png = self._image("PNG")
+        assert vision_tool._prepare_for_model(png, "image/png") == (png, "image/png")
+
+    def test_a_large_accepted_image_is_still_shrunk(self):
+        from PIL import Image
+        import io
+        big = self._image("JPEG", size=(3000, 1500))
+        out_bytes, out_mime = vision_tool._prepare_for_model(big, "image/jpeg")
+        assert out_mime == "image/jpeg"
+        assert max(Image.open(io.BytesIO(out_bytes)).size) == vision_tool.MAX_LONG_EDGE_PX
+
+    def test_undecodable_bytes_pass_through_untouched(self):
+        """Pillow has no HEIC support but Gemini does, so bytes we cannot open are
+        better forwarded to a model that can read them than rejected here."""
+        assert vision_tool._prepare_for_model(b"not-an-image", "image/heic") == (
+            b"not-an-image", "image/heic")

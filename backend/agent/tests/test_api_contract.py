@@ -302,3 +302,94 @@ def test_demo_code_does_not_block_cors_preflight(monkeypatch):
     assert resp.status_code == 200
     assert resp.headers.get("access-control-allow-origin") == "*"
     assert "x-demo-code" in resp.headers.get("access-control-allow-headers", "").lower()
+
+
+class TestVoiceTranscribeEndpoint:
+    """CR #15 -- the preview call the live microphone recorder makes the moment the
+    speaker stops, so the transcript is on screen before anyone starts an investigation."""
+
+    @staticmethod
+    def _stub_note(monkeypatch, **overrides):
+        from agent import main
+        from agent.models import VoiceNote
+        note = VoiceNote(language="ta-IN", language_name="Tamil",
+                         transcript="லைன் ரெண்டுல ப்ரிட்ஜிங்",
+                         translation="Bridging on line two",
+                         lot_or_line="line 2", observations=["bridging on line 2"],
+                         maintenance_mentions=[], low_confidence_fields=[], **overrides)
+        monkeypatch.setattr(main, "analyze_voice_note", lambda *a, **k: note)
+        return note
+
+    def test_returns_the_full_voice_note_shape_the_ui_renders(self, client, monkeypatch):
+        self._stub_note(monkeypatch)
+        res = client.post("/api/voice/transcribe",
+                          files={"audio": ("note.webm", b"fake-audio", "audio/webm")})
+        assert res.status_code == 200
+        body = res.json()
+        # Every field the recorder panel reads. A missing one renders as blank, not as
+        # an error, so the contract is asserted here rather than noticed in the demo.
+        assert body["language_name"] == "Tamil"
+        assert body["transcript"]
+        assert body["translation"] == "Bridging on line two"
+        assert body["lot_or_line"] == "line 2"
+        assert body["observations"] == ["bridging on line 2"]
+        assert body["maintenance_mentions"] == []
+        assert body["low_confidence_fields"] == []
+
+    def test_the_browsers_codecs_parameter_reaches_the_tool_unmangled(
+            self, client, monkeypatch):
+        """Chrome posts `audio/webm;codecs=opus`. The endpoint must pass the content
+        type straight through and let voice_tool normalise it -- one choke point."""
+        from agent import main
+        seen = {}
+
+        def capture(audio_bytes, mime_type="audio/wav"):
+            seen["mime"] = mime_type
+            return self._stub_note(monkeypatch)
+
+        monkeypatch.setattr(main, "analyze_voice_note", capture)
+        client.post("/api/voice/transcribe",
+                    files={"audio": ("n.webm", b"x", "audio/webm;codecs=opus")})
+        assert seen["mime"] == "audio/webm;codecs=opus"
+
+    def test_an_unreadable_container_is_a_400_naming_the_format_not_a_500(
+            self, client, monkeypatch):
+        """The recorder shows this message verbatim, so it has to say which format
+        failed -- a bare 500 would leave the user with nothing to act on."""
+        from agent import main
+
+        def refuse(*a, **k):
+            raise ValueError("unsupported audio format 'audio/amr'")
+
+        monkeypatch.setattr(main, "analyze_voice_note", refuse)
+        res = client.post("/api/voice/transcribe",
+                          files={"audio": ("n.amr", b"x", "audio/amr")})
+        assert res.status_code == 400
+        assert "audio/amr" in res.json()["detail"]
+
+    def test_empty_audio_is_rejected_as_a_400(self, client):
+        """A recording stopped before it started yields a zero-byte blob."""
+        res = client.post("/api/voice/transcribe",
+                          files={"audio": ("n.webm", b"", "audio/webm")})
+        assert res.status_code == 400
+
+    def test_transcribing_starts_no_investigation(self, client, monkeypatch):
+        """The endpoint is a dead end by design: it writes no state, so a judge
+        experimenting with the microphone cannot litter the inbox with half-runs."""
+        from agent.state import MemoryStateStore, get_state
+        self._stub_note(monkeypatch)
+        store = get_state()
+        # `get_state()` is a process-wide singleton and earlier tests in this file post
+        # to /api/investigations, so the store is not empty here -- the claim is that
+        # transcribing adds nothing, which is a before/after comparison, not emptiness.
+        # Typed explicitly so a renamed attribute fails loudly instead of passing via a
+        # getattr default.
+        assert isinstance(store, MemoryStateStore)
+        before_ids = set(store._inv)
+        before_complaints = len(client.get("/api/complaints").json())
+
+        client.post("/api/voice/transcribe",
+                    files={"audio": ("n.webm", b"x", "audio/webm")})
+
+        assert set(store._inv) == before_ids
+        assert len(client.get("/api/complaints").json()) == before_complaints

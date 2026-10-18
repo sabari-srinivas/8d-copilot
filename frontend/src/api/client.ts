@@ -8,6 +8,7 @@ import {
   mockMemory,
   mockPlantLots,
   mockPlantMaintenance,
+  mockVoiceNote,
 } from "./mocks";
 import type {
   ApproveBody,
@@ -21,6 +22,7 @@ import type {
   MaintenanceEvent,
   MemoryEntry,
   PlantLot,
+  VoiceNote,
 } from "./types";
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
@@ -90,6 +92,23 @@ export const createInvestigation = async (
   USE_MOCKS
     ? { id: "inv_mock", status: "running" }
     : json<CreateInvestigationResult>("/investigations", { method: "POST", body: form });
+
+/** Read a just-recorded voice note and show what Gemini heard, before the investigation
+ * starts (CR #15). A preview only — the investigation re-reads the same audio server-side
+ * rather than trusting this result, so nothing here feeds the 8D.
+ *
+ * In mock mode there is no backend, so a fixed Tamil note stands in: the recorder's
+ * states and the transcript panel are the point of the screen, and they must be
+ * demonstrable without credentials. */
+export const transcribeVoiceNote = async (
+  blob: Blob,
+  filename = "voice-note.webm",
+): Promise<VoiceNote> => {
+  if (USE_MOCKS) return mockVoiceNote();
+  const form = new FormData();
+  form.append("audio", blob, filename);
+  return json<VoiceNote>("/voice/transcribe", { method: "POST", body: form });
+};
 
 export const approve = (id: string, body: ApproveBody): Promise<ApproveResult> =>
   USE_MOCKS

@@ -20,6 +20,7 @@ from agent.tools.memory import list_quality_memory, seed_historical_quality_memo
 from agent.tools.plant_data import list_maintenance, list_plant_lots
 from agent.tools.seed_past_investigations import seed_past_investigations
 from agent.tools.storage import get_local_path
+from agent.tools.voice_tool import analyze_voice_note
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -131,6 +132,35 @@ def complaints():
     return [c.model_dump() for c in list_complaints()]
 
 
+@app.post("/api/voice/transcribe")
+async def transcribe_voice_note(audio: UploadFile = File(...)):
+    """Read a just-recorded voice note and hand the extraction straight back (CR #15).
+
+    This is a *preview* endpoint, and deliberately a dead end: it starts no
+    investigation and writes no state. The recorder UI needs the transcript on screen
+    seconds after the speaker stops, which is long before anyone presses "Start
+    investigation" -- and whether the note was heard correctly is exactly what decides
+    whether they re-record.
+
+    The same audio is read a second time by the intake agent when the investigation does
+    start, which is one extra model call. That is on purpose: the alternative is the
+    client posting this result back and the backend trusting it, which would put
+    model-extracted content into an investigation without it having come from a tool call
+    on this side of the wire. One repeated call is the cheaper price (CLAUDE.md rule 4).
+    """
+    try:
+        note = await asyncio.to_thread(
+            analyze_voice_note, await audio.read(), audio.content_type or "audio/webm")
+    except ValueError as exc:
+        # Raised by media_types.normalize_audio_mime for a container we cannot send, and
+        # by analyze_voice_note for empty audio. Both are the caller's problem to fix
+        # (re-record, pick another file), so they are 400s carrying the reason -- not
+        # 500s. format_error_message bounds the length for the same reason it does on
+        # the vision path: an SDK exception's str() can embed the request it was sent.
+        raise HTTPException(400, format_error_message(exc))
+    return note.model_dump()
+
+
 @app.post("/api/investigations")
 async def create_investigation(
         image: UploadFile = File(...),
@@ -138,8 +168,10 @@ async def create_investigation(
         complaint_text: str = Form(""),
         lot_id: str = Form(...),
         traveler: UploadFile | None = File(None),
-        # CR #12: an optional shift-lead voice note, alongside the photo and the
-        # spreadsheet. Audio file upload only -- no live microphone recording, per CR #12.
+        # CR #12/#15: an optional shift-lead voice note, alongside the photo and the
+        # spreadsheet. Either a chosen audio file or a blob the browser just recorded
+        # from the microphone -- identical from here down, which is why live capture
+        # needed no change to this endpoint.
         voice_note: UploadFile | None = File(None)):
     inv_id = await start(
         complaint_id=complaint_id, lot_id=lot_id,
