@@ -83,12 +83,6 @@ entirely `google-*` beside pandas, scipy and matplotlib. Antigravity, Agent Stud
 AI Studio are listed in the rules as *alternative* routes to the same requirement, not
 as additional ones.
 
-Separately, and stated plainly: the code was written with an AI coding assistant (Claude
-Code), which is why commits carry a `Co-Authored-By` trailer. That describes authorship,
-not the product. The requirement governs what the submitted solution integrates and
-deploys on — Gemini, Vertex AI, BigQuery, Firestore, Cloud Storage, Cloud Run and
-Firebase Hosting, all `asia-south1`.
-
 **One correction worth knowing**, since the original PRD in this repository still
 describes it the old way: the agents are **not** built on Google ADK. Each is a plain
 Python module calling Gemini directly through the `google-genai` SDK. ADK was evaluated

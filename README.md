@@ -83,13 +83,6 @@ is entirely `google-*` beside pandas, scipy and matplotlib.
 **No API key exists in this repository.** The service authenticates as itself through
 Vertex AI with Application Default Credentials.
 
-**On how the code was written.** This repository was developed with an AI coding
-assistant (Claude Code), which is why commits carry a `Co-Authored-By` trailer. That is
-a statement about authorship, not about the product: the requirement is that the
-*solution* integrates Google AI models or an agentic platform, and this one runs on
-Gemini and Vertex AI exclusively. Said plainly here rather than left for a judge to
-wonder about — the same honesty posture as labelling the synthetic data.
-
 ## The demo in 60 seconds
 
 1. The inbox shows complaint **C-2026-031** from Hoshino Denso (fictional): solder
