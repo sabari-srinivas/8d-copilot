@@ -200,16 +200,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <span className="text-sm opacity-70 truncate">
           Sree Electronics (fictional), Chennai
         </span>
-        {/* The footer's "Synthetic demo data" wording moved here, per the owner's
-         * request to drop the footer line -- the honesty claim still needs a home,
-         * just a quieter one. */}
-        <span
-          className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full border px-1.5 py-0.5 opacity-60"
-          style={{ borderColor: "var(--line-strong)" }}
-          title="Every number in this product is synthetic demo data"
-        >
-          Demo data
-        </span>
+        {/* No "demo data" chip here. The owner asked twice for this wording to leave
+         * the UI; the honesty claim lives in the README and the deck instead, and the
+         * plant name beside it already reads "(fictional)". See CLAUDE.md rule 5. */}
         {replayCase && (
           <span
             className="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"

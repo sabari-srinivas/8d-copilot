@@ -75,7 +75,7 @@ currently silent. Vision alone has taken up to 22 s.
 
 ---
 
-## 5. Remove the "Synthetic demo data" footer — NEEDS A DECISION
+## 5. Remove the "Synthetic demo data" footer — DONE (decided: remove entirely)
 
 Requested: remove *"Synthetic demo data · Built with Gemini on Google Cloud"* from the
 footer.
@@ -94,7 +94,15 @@ from one who was told up front.
   Google Cloud"*
 - drop it from the UI but keep it loud in the README and on the deck's data slide
 
-**Decision needed before implementing.**
+**Decision taken (18 Oct).** First pass moved the wording to a quiet header chip reading
+"Demo data". The owner then asked for that gone too, so the wording is now absent from
+every screen. The honesty claim lives in three places that remain: the plant name reads
+*"Sree Electronics (fictional), Chennai"* in the header of every screen, the README states
+it plainly, and the deck's data slide says it out loud.
+
+`AppShell.test.tsx` asserts no demo-data wording survives anywhere in the shell, so the
+chip cannot creep back in. CLAUDE.md rule 5 was updated to match — it previously required
+a UI label and would otherwise have read as a standing instruction to restore it.
 
 ---
 

@@ -60,11 +60,11 @@ describe("AppShell", () => {
     expect(screen.getByText("Quality Engineer")).toBeTruthy();
   });
 
-  it("drops the removed footer wording and shows a quiet 'Demo data' chip instead", () => {
+  it("carries no demo-data wording anywhere in the shell", () => {
     renderShell();
     expect(screen.queryByText(/Synthetic demo data/)).toBeNull();
     expect(screen.queryByText(/Built with Gemini/)).toBeNull();
-    expect(screen.getByText("Demo data")).toBeTruthy();
+    expect(screen.queryByText(/demo data/i)).toBeNull();
   });
 
   it("collapses the sidebar and persists the state across remounts (navigation)", () => {

@@ -9,6 +9,8 @@
 3. **Model names come only from env.** `GEMINI_MODEL` and `EMBED_MODEL`. Never hard-code a
    model ID in code, tests, comments or docs.
 4. **No number in the 8D that is not in a tool result.** `agent/tools/provenance.py` checks this.
-5. **All demo data is synthetic** and is labelled as synthetic in the UI, README and deck.
+5. **All demo data is synthetic** and is labelled as synthetic in the README and the deck.
+   The owner removed the UI wording (CR #5); the plant name carries "(fictional)" instead.
+   Do not reintroduce a "demo data" label into any screen.
 6. **No secrets, no image bytes in logs.**
 7. Small files, one responsibility each. A test for every tool.

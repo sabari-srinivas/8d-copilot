@@ -43,7 +43,7 @@ export function DefectPhoto({
             aria-label={alt}
             className="w-full h-full flex items-center justify-center text-xs text-center px-6 opacity-60"
           >
-            Synthetic demo photo not available in this environment.
+            Photo not available in this environment.
           </div>
         )}
 
