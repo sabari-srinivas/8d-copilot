@@ -289,6 +289,62 @@ Electronics'. That is a property of not having their plant's data, not a shortcu
 
 ---
 
+---
+
+## 17. Drop "(fictional)" from the chrome, and make the complaints dropdown two views — DONE
+
+**Two separate asks, both done.**
+
+### The "(fictional)" qualifier
+
+Out of the top bar and out of the complaints sidebar. Done via one display-layer helper,
+`frontend/src/api/display.ts`, applied at every place a customer or plant name is
+rendered — header, sidebar, both complaint lists, the investigation heading and the
+prev/next complaint links. Partial removal would have read as a bug rather than a
+decision.
+
+**The data is untouched.** `data/constants.py` still spells the names
+`Hoshino Denso (fictional)`, so BigQuery still carries them, and the 8D a judge reads
+still quotes the customer exactly as the record spells it. Nothing downstream of a tool
+result is being quietly rewritten to look better — the stripping happens at render and
+nowhere else. The honesty claim lives in the README and the deck's data slide, same
+decision as CR #5.
+
+### The complaints dropdown
+
+It previously spilled every open complaint and every past investigation into the
+sidebar, which turned a navigation control into a second copy of the page it navigates
+to. It now lists exactly two entries — **Open complaints** and **Past investigations** —
+each with a count, each opening that list in the main section.
+
+`/complaints` is the open list; `/complaints?view=past` is the past one. A query param
+rather than a second route, so an unrecognised or stale value falls back to the open
+list — the screen's primary job — instead of erroring. The dropdown now starts expanded,
+since two short entries cost nothing to show.
+
+The KPI strip (soonest 8D due, rejections outstanding) stays with the open list only;
+those numbers are meaningless over closed rows.
+
+### Found while verifying: the deployed BigQuery table was stale
+
+The five extra past investigations added in round 2 (CR #6's sibling) existed in
+`data/out/complaints.csv` and passed the backend test, but **had never been loaded into
+BigQuery** — the deployed app was serving 6 complaints where the dataset has 11, so
+"Past investigations" read 1 instead of 6. Reloaded with `bq load --replace`; the live
+API now returns 5 open and 6 closed.
+
+Worth remembering as a class of bug: the backend tests run against the CSV backend, so
+they cannot see a stale cloud table. A green test suite is not evidence that the
+deployment has the same data.
+
+### Minor, not a defect
+
+`/api/capas` takes ~5 s because it computes effectiveness statistics per CAPA, so the
+CAPA links on the past-investigations rows appear a few seconds after the rows do. Fine
+in use; worth knowing before recording the screen.
+
+---
+
 ## Scope note — written down deliberately
 
 Approved across both rounds: 8 UI changes, mobile audit, reasoning visibility, voice note

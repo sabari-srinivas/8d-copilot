@@ -11,8 +11,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { getHealth, listCapas, listComplaints } from "../api/client";
-import type { CapaRecord, Complaint } from "../api/types";
+import { getHealth, listComplaints } from "../api/client";
+import type { Complaint } from "../api/types";
 
 // The five tabs read left to right as the quality engineer's actual working sequence:
 // see the state, pick the work, act on it, remember it, check the evidence. "/" is
@@ -55,21 +55,44 @@ function useReplayCase(): string | null {
  * engineer can jump straight to one complaint without going through the Complaints
  * screen first. Collapsed by default; independent of the sidebar's own collapse state
  * (only rendered at all when the sidebar itself is expanded). */
+/** The two views the Complaints screen can show, and the only things the sidebar
+ * dropdown lists (CR #17). `?view=past` is what the page branches on — a query param
+ * rather than a second route, so a judge who lands on `/complaints` with no param gets
+ * the open list, which is the screen's job. */
+const COMPLAINT_VIEWS = [
+  {
+    to: "/complaints",
+    view: "open",
+    label: "Open complaints",
+    count: (n: { open: number; past: number }) => n.open,
+  },
+  {
+    to: "/complaints?view=past",
+    view: "past",
+    label: "Past investigations",
+    count: (n: { open: number; past: number }) => n.past,
+  },
+];
+
 function ComplaintsNavItem({ collapsedSidebar }: { collapsedSidebar: boolean }) {
-  const [open, setOpen] = useState(false);
+  // Starts expanded: the dropdown is now two short entries rather than a spill of every
+  // complaint, so showing them costs nothing and saves a click on the one nav item a
+  // judge is most likely to want.
+  const [open, setOpen] = useState(true);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [capas, setCapas] = useState<CapaRecord[]>([]);
   const location = useLocation();
   const active = location.pathname === "/complaints";
+  // Anything other than `past` is the open list — the same defaulting the page does, so
+  // the highlighted entry and the rendered view can never disagree.
+  const currentView =
+    new URLSearchParams(location.search).get("view") === "past" ? "past" : "open";
 
   useEffect(() => {
     listComplaints().then(setComplaints).catch(() => setComplaints([]));
-    listCapas().then(setCapas).catch(() => setCapas([]));
   }, []);
 
   const openComplaints = complaints.filter((c) => c.status === "open");
   const pastComplaints = complaints.filter((c) => c.status === "closed");
-  const capaByComplaint = new Map(capas.map((c) => [c.complaint_id, c]));
 
   if (collapsedSidebar) {
     return (
@@ -112,46 +135,37 @@ function ComplaintsNavItem({ collapsedSidebar }: { collapsedSidebar: boolean }) 
         </button>
       </div>
 
+      {/* CR #17: two entries, not two lists. The dropdown previously spilled every
+        * complaint and every past investigation into the sidebar, which made a
+        * navigation control into a second copy of the page it navigates to. These are
+        * views; the detail belongs in the main section. */}
       {open && (
-        <div className="pl-3 pb-1 flex flex-col gap-2 text-sm">
-          <div>
-            <p className="stat-label px-2 pt-1.5">Open complaints ({openComplaints.length})</p>
-            <ul className="flex flex-col">
-              {openComplaints.map((c) => (
-                <li key={c.complaint_id}>
-                  <Link
-                    to={`/new?complaint=${encodeURIComponent(c.complaint_id)}`}
-                    className="tap-target flex flex-col justify-center px-2 rounded hover:bg-[var(--surface-hover)]"
-                  >
-                    <span className="truncate text-xs font-medium">{c.customer}</span>
-                    <span className="mono text-[11px] opacity-60">{c.complaint_id}</span>
-                  </Link>
-                </li>
-              ))}
-              {openComplaints.length === 0 && <li className="px-2 text-xs opacity-50">None open</li>}
-            </ul>
-          </div>
-          <div>
-            <p className="stat-label px-2 pt-1">Past investigations ({pastComplaints.length})</p>
-            <ul className="flex flex-col">
-              {pastComplaints.map((c) => {
-                const capa = capaByComplaint.get(c.complaint_id);
-                return (
-                  <li key={c.complaint_id}>
-                    <Link
-                      to={capa ? `/capa?highlight=${encodeURIComponent(capa.id)}` : "/complaints"}
-                      className="tap-target flex flex-col justify-center px-2 rounded hover:bg-[var(--surface-hover)]"
-                    >
-                      <span className="truncate text-xs font-medium">{c.customer}</span>
-                      <span className="mono text-[11px] opacity-60">{c.complaint_id}{capa ? ` → ${capa.id}` : ""}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-              {pastComplaints.length === 0 && <li className="px-2 text-xs opacity-50">None yet</li>}
-            </ul>
-          </div>
-        </div>
+        <ul className="pl-3 pb-1 flex flex-col text-sm">
+          {COMPLAINT_VIEWS.map(({ to, view, label, count }) => {
+            // Not NavLink's own `isActive`: it matches on pathname and ignores the
+            // query string, so both entries would highlight at once on /complaints.
+            const isCurrent = active && currentView === view;
+            return (
+              <li key={to}>
+                <Link
+                  to={to}
+                  aria-current={isCurrent ? "page" : undefined}
+                  className={`tap-target flex items-center gap-2 px-2 rounded text-xs ${
+                    isCurrent
+                      ? "font-semibold"
+                      : "opacity-75 hover:opacity-100 hover:bg-[var(--surface-hover)]"
+                  }`}
+                  style={{ color: isCurrent ? "var(--green)" : undefined }}
+                >
+                  <span className="truncate">{label}</span>
+                  <span className="mono text-[11px] opacity-60 ml-auto shrink-0">
+                    {count({ open: openComplaints.length, past: pastComplaints.length })}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
@@ -198,11 +212,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           8D
         </span>
         <span className="text-sm opacity-70 truncate">
-          Sree Electronics (fictional), Chennai
+          Sree Electronics, Chennai
         </span>
-        {/* No "demo data" chip here. The owner asked twice for this wording to leave
-         * the UI; the honesty claim lives in the README and the deck instead, and the
-         * plant name beside it already reads "(fictional)". See CLAUDE.md rule 5. */}
+        {/* No "demo data" chip and no "(fictional)" qualifier here — the owner asked for
+         * both out of the chrome (CR #5, CR #17). The honesty claim lives in the README
+         * and the deck's data slide instead. See CLAUDE.md rule 5. */}
         {replayCase && (
           <span
             className="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"

@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { createInvestigation, listComplaints } from "../api/client";
+import { plainName } from "../api/display";
 import type { Complaint } from "../api/types";
 import { VoiceRecorder, canRecordAudio } from "../components/VoiceRecorder";
 
@@ -39,7 +40,7 @@ function AdjacentComplaintNav({
           className="tap-target inline-flex items-center gap-1 font-medium underline shrink-0 whitespace-nowrap"
           style={{ color: "var(--green)" }}
         >
-          <ArrowLeft size={14} aria-hidden="true" /> {prev.customer}
+          <ArrowLeft size={14} aria-hidden="true" /> {plainName(prev.customer)}
         </Link>
       ) : (
         <span />
@@ -53,7 +54,7 @@ function AdjacentComplaintNav({
           className="tap-target inline-flex items-center gap-1 font-medium underline shrink-0 whitespace-nowrap"
           style={{ color: "var(--green)" }}
         >
-          {next.customer} <ArrowRight size={14} aria-hidden="true" />
+          {plainName(next.customer)} <ArrowRight size={14} aria-hidden="true" />
         </Link>
       )}
     </nav>
@@ -138,7 +139,7 @@ export function NewInvestigation() {
       {complaints && <AdjacentComplaintNav complaints={complaints} currentId={complaintId} />}
 
       <h1 className="text-lg font-semibold mb-1">
-        {complaint ? `${complaint.customer} · ${complaint.product}` : "Loading complaint…"}
+        {complaint ? `${plainName(complaint.customer)} · ${complaint.product}` : "Loading complaint…"}
       </h1>
       <p className="text-sm opacity-70 mb-1">
         Complaint <span className="mono">{complaintId}</span>

@@ -1,7 +1,8 @@
 import { AlertCircle, Clock, Inbox as InboxIcon, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { listCapas, listComplaints } from "../api/client";
+import { plainName } from "../api/display";
 import type { CapaRecord, Complaint } from "../api/types";
 import { LifecycleStrip } from "../components/LifecycleStrip";
 
@@ -58,7 +59,7 @@ function ComplaintRow({ c, onOpen }: { c: Complaint; onOpen: () => void }) {
       <DueBadge days={c.due_in_working_days} />
       <div className="min-w-0 flex-1 flex flex-col gap-0.5">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-semibold truncate">{c.customer}</span>
+          <span className="text-sm font-semibold truncate">{plainName(c.customer)}</span>
           <span className="text-xs opacity-60">{c.product}</span>
           {c.is_rejection && <RejectionBadge />}
         </div>
@@ -138,6 +139,11 @@ export function Complaints() {
   const [complaints, setComplaints] = useState<Complaint[] | null>(null);
   const [capas, setCapas] = useState<CapaRecord[]>([]);
   const navigate = useNavigate();
+  // CR #17: the sidebar's two entries select which list the main section shows, rather
+  // than listing the complaints themselves. Anything but `past` is the open list, so a
+  // hand-typed or stale URL lands on the screen's primary job rather than an error.
+  const [params] = useSearchParams();
+  const view = params.get("view") === "past" ? "past" : "open";
 
   useEffect(() => {
     listComplaints().then(setComplaints);
@@ -155,32 +161,42 @@ export function Complaints() {
   return (
     <div className="flex flex-col gap-5">
       <LifecycleStrip current="Complaints" />
-      <KpiStrip open={open} />
+      {view === "open" && <KpiStrip open={open} />}
 
-      <section>
+      {view === "open" && (
+        <section>
+          <div className="flex items-baseline justify-between gap-2 flex-wrap mb-2">
+            <h1 className="text-lg font-semibold">Open complaints</h1>
+            {open.length > 0 && (
+              <span className="text-xs opacity-60">Sorted by 8D due date · most urgent first</span>
+            )}
+          </div>
+          {open.length === 0 ? (
+            <p className="text-sm opacity-60">No open complaints. Nice work.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {open.map((c) => (
+                <ComplaintRow
+                  key={c.complaint_id}
+                  c={c}
+                  onOpen={() => navigate(`/new?complaint=${encodeURIComponent(c.complaint_id)}`)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {view === "past" && (
+      <section id="past-investigations">
         <div className="flex items-baseline justify-between gap-2 flex-wrap mb-2">
-          <h1 className="text-lg font-semibold">Open complaints</h1>
-          {open.length > 0 && (
-            <span className="text-xs opacity-60">Sorted by 8D due date · most urgent first</span>
+          <h1 className="text-lg font-semibold">Past investigations</h1>
+          {closed.length > 0 && (
+            <span className="text-xs opacity-60">
+              Closed complaints and the CAPA each one raised
+            </span>
           )}
         </div>
-        {open.length === 0 ? (
-          <p className="text-sm opacity-60">No open complaints. Nice work.</p>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            {open.map((c) => (
-              <ComplaintRow
-                key={c.complaint_id}
-                c={c}
-                onOpen={() => navigate(`/new?complaint=${encodeURIComponent(c.complaint_id)}`)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section id="past-investigations">
-        <h2 className="text-sm font-semibold mb-2 opacity-80">Past investigations</h2>
         {closed.length === 0 ? (
           <p className="text-sm opacity-60">No closed complaints yet.</p>
         ) : (
@@ -189,7 +205,7 @@ export function Complaints() {
               const capa = capaByComplaint.get(c.complaint_id);
               return (
                 <li key={c.complaint_id} className="card px-3 py-2 text-sm flex flex-wrap items-center gap-2 opacity-90">
-                  <span className="font-medium">{c.customer}</span>
+                  <span className="font-medium">{plainName(c.customer)}</span>
                   <span className="opacity-60">· {c.product} · lot <span className="mono">{c.lot_id}</span></span>
                   <span className="mono text-xs opacity-50">{c.complaint_id} · closed</span>
                   {capa && (
@@ -207,6 +223,7 @@ export function Complaints() {
           </ul>
         )}
       </section>
+      )}
     </div>
   );
 }
