@@ -2,20 +2,53 @@
 
 **Live demo: [q8d-copilot.web.app](https://q8d-copilot.web.app) · access code `demo-b1b20c`**
 
-> Start at **Complaints → Hoshino Denso · C-2026-031**. Both files you need are in this
-> repository:
->
-> - **Defect photo** — [`backend/data/images/defect_03.jpg`](backend/data/images/defect_03.jpg)
-> - **Lot traveler (optional)** — [`backend/data/out/lot_traveler_line2_wk41.xlsx`](backend/data/out/lot_traveler_line2_wk41.xlsx),
->   deliberately messy: title rows above the header, `dd/mm` dates, and the literal text
->   *"same as prev"* where a temperature should be — flagged as low-confidence rather
->   than guessed
->
-> Then optionally press the mic and say *"bridging again on line two, the vendor looked
-> at the oven on Wednesday"* — Gemini reads the audio directly, in English, Tamil or
-> Hindi. Upload your own board photo if you prefer; the vision call is live, and a photo
-> with no visible defect correctly returns *"no defect visible"* rather than inventing
-> one.
+> **In a hurry?** Open **Complaints → Hoshino Denso · C-2026-031**, upload
+> [`defect_03.jpg`](backend/data/images/defect_03.jpg) and
+> [`lot_traveler_line2_wk41.xlsx`](backend/data/out/lot_traveler_line2_wk41.xlsx) from
+> this repository, and press **Start investigation**. Full per-case guide below.
+
+## Try it yourself — which file to upload, for which case
+
+Every file named here is committed to this repository. Download the two you need, open
+the complaint, and upload them on the investigation screen. The lot traveler is always
+optional — the investigation runs without it.
+
+| # | Open this complaint | Upload this photo | Upload this traveler | What you should see |
+|---|---|---|---|---|
+| 1 | **C-2026-031** · Hoshino Denso · lot L2611 | [`defect_03.jpg`](backend/data/images/defect_03.jpg) | [`lot_traveler_line2_wk41.xlsx`](backend/data/out/lot_traveler_line2_wk41.xlsx) | **The golden path.** Solder bridge found, five hypotheses tested, reflow drift after WO-388 **supported**, three decoys **rejected**, operator **inconclusive**, a cited 8D drafted |
+| 2 | **C-2026-033** · Hoshino Denso · lot L2612 | [`defect_03.jpg`](backend/data/images/defect_03.jpg) | [`lot_traveler_line2_wk41.xlsx`](backend/data/out/lot_traveler_line2_wk41.xlsx) | **A rejected 8D.** The customer refused *"root cause stated as operator error"*. The agent **revises** the failing sections instead of drafting fresh |
+| 3 | **C-2026-034** · Meridian Auto · lot L2610 | [`defect_03.jpg`](backend/data/images/defect_03.jpg) | [`lot_traveler_line2_wk41.xlsx`](backend/data/out/lot_traveler_line2_wk41.xlsx) | **A second rejection, different objection** — *"D4 does not explain why the condition escaped detection"* |
+| 4 | **C-2026-035** · Vindhya Auto · lot L2590 | [`defect_04.jpg`](backend/data/images/defect_04.jpg) | *(skip — this lot is outside the traveler's week)* | **A different defect type.** `defect_04.jpg` reads as **misalignment**, not a bridge — the vision call is genuinely reading your image, not replaying a script |
+| 5 | Any of the above | [`no_defect_01.jpg`](backend/data/images/no_defect_01.jpg) | *(skip)* | **The honest refusal.** A clean board returns *"No defect is visible in the photo"* and the investigation stops at **insufficient evidence** rather than inventing a cause |
+| 6 | Any of the above | **your own photo** | *(skip)* | The vision call is live against whatever you upload. GIF, BMP and TIFF are converted automatically |
+
+**The voice note works on any of these.** Press the mic, say *"bridging again on line
+two, the vendor looked at the oven on Wednesday"*, press it again. Gemini reads the audio
+directly — no speech-to-text service in between — in English, Tamil or Hindi. The
+transcript, the language it detected and what it extracted appear before you start.
+
+**Why the traveler is worth uploading at least once.** It is deliberately the spreadsheet
+a real shift lead would hand you: two title rows above the header, `dd/mm` dates,
+abbreviated column names (`Oven peak (C) [from printout]`), and the literal text **`same
+as prev`** where lot 2613's temperature should be. That cell is flagged
+**low-confidence** rather than guessed — the behaviour worth checking if you want to know
+whether the system invents data under pressure.
+
+**Two things to avoid, said plainly:**
+
+- **Don't use `C-2026-032` (Kaveri Motors).** It references lot `L9142`, which is not in
+  this dataset. The investigation will not complete. It is left in the inbox because a
+  real one would contain unworkable referrals too, but it is not a demo path.
+- **`defect_01.jpg` and `defect_02.jpg` read as `none`** despite carrying real anomalies —
+  documented vision false negatives, see [`IMAGES.md`](backend/data/images/IMAGES.md).
+  Use them if you want to see the insufficient-evidence path; don't use them expecting a
+  defect.
+
+**On stability, since it matters more than a clean demo:** `defect_03.jpg` returned
+`solder_bridge` in 2 of 3 live calls under the final prompt — one call read `none`. That
+is reported rather than hidden. If your run comes back with no defect, re-run it; the
+model is not deterministic, and claiming otherwise would be the kind of thing this
+product exists to argue against.
 
 A quality-engineering agent for an SMT electronics plant. A photo and a customer complaint
 go in; a statistically tested root cause and a cited 8D report come out.
