@@ -226,6 +226,69 @@ drafts from scratch.
 
 ---
 
+---
+
+# Change requests — round 3
+
+Raised while preparing the submission (URL + deck + screen recording), thinking about
+what a judge will actually do with the link.
+
+---
+
+## 15. Live microphone capture, not a file upload — DONE
+
+A judge will not have a `.wav` of a shift lead to hand. The voice note had to be
+something they can *do*: press the mic, talk, press it again.
+
+**Built:** one toggling button. Click to record — pulsing indicator, elapsed timer,
+"Recording". Click again — "Transcribing with Gemini…" — then the transcript panel:
+the transcript in whatever language was spoken, an English translation when it differs,
+the lot or line it heard, the observations and maintenance mentions it extracted, and a
+warning naming any field it is not sure it heard.
+
+New endpoint `POST /api/voice/transcribe`, a deliberate dead end: it starts no
+investigation and writes no state. The recorded blob is still posted with the
+investigation, which **re-reads the audio server-side** rather than trusting a
+client-supplied extraction — one extra model call, bought on purpose (CLAUDE.md rule 4).
+
+**Two things found by testing rather than assuming:**
+
+- Safari records `audio/mp4`, which is not in Gemini's accepted list; `audio/m4a` is the
+  same container under a name it knows. Without that mapping, live recording would have
+  failed on every iPhone and Mac. Verified against the deployed service with a real
+  AAC-in-MP4 file.
+- A permission prompt that is *dismissed* rather than answered leaves `getUserMedia`
+  pending forever. The Record button sat disabled with no way back. The wait is now
+  bounded, and a file picker appears once the mic has failed, so someone who blocked the
+  permission outright can still use the feature.
+
+Verified end to end against `https://d-copilot-2026.web.app` with a real browser and a
+fake capture device: record → indicator → stop → transcribing → transcript.
+
+---
+
+## 16. Will a judge's own photo work? — DONE (one real gap, fixed)
+
+The honest answer, checked rather than assumed:
+
+- **Yes, the read is genuinely theirs.** The vision call sends their bytes to Gemini.
+  Nothing is cached, keyed to a filename, or pre-baked.
+- **A photo that is not a defective board returns `none`** and the app says so —
+  "no defect visible, escalate to physical inspection" — instead of inventing one. That
+  path is decided by Python, not the model.
+- **The gap, now fixed:** Gemini accepts only PNG, JPEG, WEBP, HEIC and HEIF. A GIF, BMP
+  or TIFF — all reasonable things to try — failed the whole investigation.
+  `vision_tool` now re-encodes anything outside that list to JPEG. Verified live: a BMP
+  of the demo board reads `solder_bridge · critical`, same as the JPEG.
+
+**The limit worth stating out loud in the deck, because a judge will find it:** the
+*statistics* always run against the complaint's lot in the plant dataset, not against
+their board. We have no process data for their photo — no reflow temperatures, no AOI
+counts. So the defect reading is theirs; the root-cause analysis is still Sree
+Electronics'. That is a property of not having their plant's data, not a shortcut.
+
+---
+
 ## Scope note — written down deliberately
 
 Approved across both rounds: 8 UI changes, mobile audit, reasoning visibility, voice note

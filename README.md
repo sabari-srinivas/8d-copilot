@@ -19,7 +19,9 @@ and defect data is synthetic; see [What is synthetic](#what-is-synthetic).
 1. The inbox shows complaint **C-2026-031** from Hoshino Denso (fictional): solder
    bridging on ECU-PCB-7, lot L2611, 14 of 500 units, 8D due in 10 working days.
 2. The engineer opens it, uploads the defect photo and the messy Line 2 lot-traveler
-   spreadsheet, and starts the investigation.
+   spreadsheet, optionally records a spoken note from the floor — press the mic, talk,
+   press it again, and Gemini reads the audio directly, in English, Tamil or Hindi —
+   and starts the investigation.
 3. Vision identifies the defect: solder bridge, major, with a bounding box on the photo.
 4. The investigator proposes five hypotheses across the 6Ms and tests each one against
    plant data:
@@ -264,6 +266,15 @@ cd frontend && npm test                             # 15 passing
   document) or a conditional write (`create` semantics, fail if the id already exists)
   instead of an in-process counter — not attempted here; this is a named, deliberate gap
   for tonight, not an oversight.
+- **Your own photo is genuinely read, but the statistics are still ours.** Upload any
+  image and the vision call sends your bytes to Gemini — nothing is cached or keyed to a
+  filename, and a photo that is not a defective board returns `none` and says so rather
+  than inventing a defect. What cannot be yours is the *evidence*: every hypothesis is
+  tested against the complaint's lot in this synthetic plant, because there are no reflow
+  temperatures or AOI counts for your board. So the defect reading is yours and the
+  root-cause analysis is Sree Electronics'. Formats outside Gemini's accepted set (GIF,
+  BMP, TIFF) are re-encoded to JPEG rather than rejected; see
+  `agent/tools/media_types.py`.
 - **`defect_01.jpg` and `defect_02.jpg` are vision false negatives.** Both carry genuine,
   documented anomalies but consistently read as `none` under the final vision prompt,
   across two independent rounds of prompt tightening. Only `defect_03.jpg` reliably reads

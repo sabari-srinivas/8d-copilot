@@ -168,10 +168,17 @@ Three inputs, three icons, no paragraphs:
 - **The spreadsheet** the shift leads actually fill in — title rows above the
   header, `dd/mm` dates, and the literal text *"same as prev"* where a temperature
   should be, flagged as low-confidence rather than guessed
-- **A voice note** — *"bridging again on line two, oven's been odd since the vendor
-  came in"* — English, Tamil or Hindi
+- **A voice note, spoken into the page** — press the mic, say *"bridging again on line
+  two, oven's been odd since the vendor came in"*, press it again. English, Tamil or
+  Hindi. No file to prepare, no speech-to-text service in between: Gemini reads the
+  audio itself.
 
 One line: *No MES. No integration project. The inputs a Tier-2 plant already has.*
+
+**Worth demonstrating live if the room allows it** — the mic is the one thing on screen
+a judge can try themselves in ten seconds, and watching the transcript appear in their
+own voice does more than any slide about multimodality. It records in the browser, so it
+works from their laptop over the deployed URL.
 
 ---
 
@@ -274,7 +281,7 @@ one model family. Each row names the file so a judge can check.
 |---|---|---|---|
 | 1 | **Vision** | Reads a defect photo and returns type, severity, a bounding box as 0–1 fractions, confidence, and one sentence of visual evidence. Forbidden from guessing a cause — appearance only. | `agents/vision.py`, `tools/vision_tool.py` |
 | 2 | **Intake** | Turns free-text customer prose into structured fields — customer, product, lot, quantities, due date. Leaves a field empty rather than inventing it. | `agents/intake.py`, `tools/intake_tools.py` |
-| 3 | **Voice** | Extracts evidence from a shift lead's spoken note: lot or line, observations, maintenance mentions, transcript. Detects the language, translates, and flags anything half-heard. | `tools/voice_tool.py` |
+| 3 | **Voice** | Extracts evidence from a shift lead's spoken note: lot or line, observations, maintenance mentions, transcript. Detects the language, translates, and flags anything half-heard. Recorded **live in the browser** — press the mic, talk, press it again. | `tools/voice_tool.py`, `components/VoiceRecorder.tsx` |
 | 4 | **Investigator** | Proposes 3–5 hypotheses across the 6Ms, each naming exactly one measurable parameter or maintenance event plus an expected direction. Checks quality memory first. **Relays every verdict; never forms one.** | `agents/investigator.py` |
 | 5 | **Evidence** | Turns the supported hypothesis into a retrieval query and returns passages with source, row reference and quote. | `agents/evidence.py`, `tools/doc_search.py` |
 | 6 | **Writer** | Drafts D1–D8. Every factual sentence carries a citation; numbers may come only from tool results. Never "operator error". | `agents/writer.py` |
@@ -286,7 +293,7 @@ one model family. Each row names the file so a judge can check.
 | Capability | Evidence it is real |
 |---|---|
 | **Multimodal vision** | Live Gemini call on an uploaded photo; a judge can upload their own |
-| **Audio understanding** | Same `generate_content` path, audio bytes instead of image — no separate speech service |
+| **Audio understanding** | Same `generate_content` path, audio bytes instead of image — no separate speech service. Captured from the judge's own microphone, in their own language |
 | **Structured output** | Every model call validated against a Pydantic schema; one retry, then a hard error |
 | **Agentic reasoning** | Hypotheses proposed across the 6Ms, each tied to a testable parameter |
 | **Tool use with the model subordinate** | `test_hypothesis` returns the verdict; the agent relays it even when it contradicts the hypothesis |
