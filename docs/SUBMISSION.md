@@ -4,7 +4,7 @@ Google Cloud AI Builder Cup 2026 · Manufacturing · JAPAC
 
 | Deliverable | Where |
 |---|---|
-| Live deployed prototype | **https://d-copilot-2026.web.app** — access code `demo-b1b20c` |
+| Live deployed prototype | **https://q8d-copilot.web.app** — access code `demo-b1b20c` |
 | GitHub repository | https://github.com/sabari-srinivas/8d-copilot |
 | Demo video | *(separate deliverable)* |
 | Pitch deck | *(separate deliverable — speaker notes in [`DECK.md`](DECK.md))* |

@@ -1,6 +1,6 @@
 # 8D Copilot
 
-**Live demo: [d-copilot-2026.web.app](https://d-copilot-2026.web.app) · access code `demo-b1b20c`**
+**Live demo: [q8d-copilot.web.app](https://q8d-copilot.web.app) · access code `demo-b1b20c`**
 
 > Start at **Complaints → Hoshino Denso · C-2026-031**, upload
 > [`backend/data/images/defect_03.jpg`](backend/data/images/defect_03.jpg) as the defect
@@ -199,7 +199,7 @@ in the header, so a viewer is never unsure whether a run is live.
 
 ## Deploy
 
-The live site (`https://d-copilot-2026.web.app`) is a static SPA on Firebase Hosting
+The live site (`https://q8d-copilot.web.app`) is a static SPA on Firebase Hosting
 calling a Cloud Run API (`https://api-166753422106.asia-south1.run.app`, `asia-south1`)
 directly cross-origin — **not** through the `/api/**` rewrite in `firebase.json`.
 Firebase Hosting's `run` rewrite buffers the full SSE response instead of streaming it

@@ -1,19 +1,51 @@
 {
-  "hosting": {
-    "public": "frontend/dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [
-      {
-        "source": "/api/**",
-        "run": {
-          "serviceId": "api",
-          "region": "asia-south1"
+  "_comment": [
+    "Two hosting sites, one build. q8d-copilot.web.app is the submission URL: a GCP",
+    "project id may not begin with a digit, so the project had to be called",
+    "d-copilot-2026 and the product's '8' was lost from the hostname. A Firebase",
+    "Hosting site id has no such rule, so a second site carries the name the product",
+    "actually has.",
+    "",
+    "d-copilot-2026.web.app stays listed here deliberately: it was shared before the",
+    "rename, and deploying both from the same frontend/dist means the old link serves",
+    "the current build instead of silently rotting at whatever was last pushed to it."
+  ],
+  "hosting": [
+    {
+      "site": "q8d-copilot",
+      "public": "frontend/dist",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "run": {
+            "serviceId": "api",
+            "region": "asia-south1"
+          }
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
         }
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
-  }
+      ]
+    },
+    {
+      "site": "d-copilot-2026",
+      "public": "frontend/dist",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "run": {
+            "serviceId": "api",
+            "region": "asia-south1"
+          }
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    }
+  ]
 }

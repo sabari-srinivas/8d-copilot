@@ -7,7 +7,7 @@ Every figure below was read from the live deployment on 18 October 2026. If you
 change the data, re-read them — a wrong number in front of a judge costs more
 than a missing one.
 
-- Live: **https://d-copilot-2026.web.app** · access code **demo-b1b20c**
+- Live: **https://q8d-copilot.web.app** · access code **demo-b1b20c**
 - API: `https://api-166753422106.asia-south1.run.app/api/health`
 
 ---
@@ -237,7 +237,7 @@ One line: *Days of engineering work become one approval.*
 
 > **The AI proposes. The data decides. A human approves.**
 >
-> https://d-copilot-2026.web.app · code demo-b1b20c
+> https://q8d-copilot.web.app · code demo-b1b20c
 
 Same deep green as slide 1. The deck ends where it started.
 
