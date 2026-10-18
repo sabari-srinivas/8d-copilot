@@ -74,6 +74,28 @@ through Vertex AI. Every backend is swappable by environment variable, so a fres
 runs fully offline on CSV and in-memory state, and returns the same verdicts as the
 cloud deployment.
 
+### Meeting the "Google AI models or an agentic platform" rule
+
+The rule is an **or**, and this submission satisfies the first branch outright: **every
+AI step runs Gemini 2.5 Flash through Vertex AI**. There is no second model anywhere in
+the runtime — no Anthropic or OpenAI SDK is imported, and `backend/pyproject.toml` is
+entirely `google-*` beside pandas, scipy and matplotlib. Antigravity, Agent Studio and
+AI Studio are listed in the rules as *alternative* routes to the same requirement, not
+as additional ones.
+
+Separately, and stated plainly: the code was written with an AI coding assistant (Claude
+Code), which is why commits carry a `Co-Authored-By` trailer. That describes authorship,
+not the product. The requirement governs what the submitted solution integrates and
+deploys on — Gemini, Vertex AI, BigQuery, Firestore, Cloud Storage, Cloud Run and
+Firebase Hosting, all `asia-south1`.
+
+**One correction worth knowing**, since the original PRD in this repository still
+describes it the old way: the agents are **not** built on Google ADK. Each is a plain
+Python module calling Gemini directly through the `google-genai` SDK. ADK was evaluated
+and deliberately not adopted — it was removed when it turned out to be imported nowhere.
+The README says so in its own words; this note exists so the PRD's planning-stage claim
+is not mistaken for a description of what shipped.
+
 See [`DECK.md`](DECK.md) Appendix A and B for the full inventory of AI features and the
 integration steps, both verified against the code rather than written from memory.
 

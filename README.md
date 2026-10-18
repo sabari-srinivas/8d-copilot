@@ -24,6 +24,32 @@ customer reply, and saves the confirmed cause to quality memory.
 Built for the Google Cloud AI Builder Cup 2026, manufacturing theme. All plant, customer
 and defect data is synthetic; see [What is synthetic](#what-is-synthetic).
 
+## Google AI, end to end
+
+**Every AI step in this product is Gemini, through Vertex AI.** There is no second model
+and no non-Google AI anywhere in the runtime — a `grep` for `anthropic` or `openai`
+across the source returns nothing, and the dependency list in `backend/pyproject.toml`
+is entirely `google-*` beside pandas, scipy and matplotlib.
+
+| Step | Model / service |
+|---|---|
+| Reading the defect photo | Gemini 2.5 Flash (multimodal vision), Vertex AI |
+| Reading a spoken shift-lead note | Gemini 2.5 Flash (native audio), Vertex AI |
+| Proposing hypotheses, drafting the 8D, the bilingual reply | Gemini 2.5 Flash, Vertex AI |
+| Citations into the PFMEA and control plan | Vertex AI RAG Engine |
+| Quality memory | `text-embedding-005` + Firestore vector search |
+| Plant data · state · files · hosting | BigQuery · Firestore · Cloud Storage · Cloud Run + Firebase Hosting |
+
+**No API key exists in this repository.** The service authenticates as itself through
+Vertex AI with Application Default Credentials.
+
+**On how the code was written.** This repository was developed with an AI coding
+assistant (Claude Code), which is why commits carry a `Co-Authored-By` trailer. That is
+a statement about authorship, not about the product: the requirement is that the
+*solution* integrates Google AI models or an agentic platform, and this one runs on
+Gemini and Vertex AI exclusively. Said plainly here rather than left for a judge to
+wonder about — the same honesty posture as labelling the synthetic data.
+
 ## The demo in 60 seconds
 
 1. The inbox shows complaint **C-2026-031** from Hoshino Denso (fictional): solder
